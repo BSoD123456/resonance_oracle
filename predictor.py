@@ -75,10 +75,13 @@ class c_dumb_predictor(c_predictor):
                 stp = - stp
         return cval, stp >= 0
 
+from picker import make_picker
+
+def make_predictor():
+    return c_dumb_predictor(make_picker(), cfg = DUMB_CFG)
+
 if __name__ == '__main__':
     from pdb import pm
     from pprint import pprint as ppr
-
-    from picker import make_picker
     
-    prd = c_dumb_predictor(make_picker(), cfg = DUMB_CFG)
+    prd = make_predictor()

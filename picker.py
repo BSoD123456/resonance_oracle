@@ -104,6 +104,9 @@ class c_picker(c_raw_picker):
                 ilst.append(nm)
         return clst
 
+    def get_city_list(self):
+        return self.gdat['city']
+
     def _get_sta_buy(self, name, city):
         tlst = self.gdat['item']
         if not name in tlst:
@@ -167,4 +170,4 @@ if __name__ == '__main__':
     from pdb import pm
     from pprint import pprint as ppr
     
-    pck = default_picker()
+    pck = make_picker()
