@@ -24,8 +24,15 @@ class c_configurator:
         with open(self.fname, 'w', encoding=self.codec) as fd:
             json.dump(self.dat, fd, ensure_ascii=False, indent=4, sort_keys=False)
 
+    @staticmethod
+    def _pkeys(path):
+        if isinstance(path, str):
+            return path.split('/')
+        else:
+            return path
+
     def set(self, path, val, skip_save = False):
-        keys = path.split('/')
+        keys = self._pkeys(path)
         cur = self.dat
         for k in keys[:-1]:
             if not k in cur:
@@ -42,7 +49,7 @@ class c_configurator:
         return True
 
     def get(self, path, default = None):
-        keys = path.split('/')
+        keys = self._pkeys(path)
         cur = self.dat
         for k in keys:
             if not k in cur:

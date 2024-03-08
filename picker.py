@@ -3,7 +3,7 @@
 
 import os, os.path
 import json, re
-import time
+from time import time as nowtime
 from urllib import request, parse, error as uerr
 from socket import error as serr
 
@@ -89,7 +89,7 @@ class c_raw_picker:
         return dat
 
     def update(self):
-        upd_time = time.time()
+        upd_time = nowtime()
         try:
             self.sta_dat = self._cache(
                 upd_time,
@@ -110,8 +110,8 @@ class c_raw_picker:
 class c_picker(c_raw_picker):
 
     def __init__(self, *args, tired_tab, glb_cfg, **kargs):
+        self.gcfg = glb_cfg
         self.udat = {
-            'cfg': glb_cfg,
             'tired': tired_tab,
         }
         super().__init__(*args, **kargs)
@@ -207,6 +207,9 @@ class c_picker(c_raw_picker):
         number = itm.get('buyLot', {}).get(city, None)
         if price is None or number is None:
             return None
+        num_scale = self.gcfg.get(['num_scale', city, name])
+        if not num_scale is None:
+            number *= num_scale
         return {
             'base': price,
             'number': number,
@@ -219,10 +222,18 @@ class c_picker(c_raw_picker):
         itm = tlst[name]
         return itm.get('sellPrices', {}).get(city, None)
 
-    def _get_dyn_sale(self, tkey, name, city):
+    def _get_dyn_sale(self, tkey, name, city, force = False):
         itm = self.dyn_dat['data'].get(name, {}).get(tkey, {}).get(city, None)
         if itm is None:
-            return None
+            if force:
+                # just guess 80% for missing sale info
+                return {
+                    'time': nowtime(),
+                    'up': False,
+                    'sale': 80,
+                }
+            else:
+                return None
         up = (itm.get('trend') == 'up')
         time = itm.get('time', {})
         # time reformat only for old version
@@ -234,21 +245,21 @@ class c_picker(c_raw_picker):
         }
 
     def get_buy(self, name, city):
-        info = self._get_dyn_sale('buy', name, city)
-        if info is None:
-            return None
         sinfo = self._get_sta_buy(name, city)
         if sinfo is None:
+            return None
+        info = self._get_dyn_sale('buy', name, city, force = True)
+        if info is None:
             return None
         info.update(sinfo)
         return info
 
     def get_sell(self, name, city):
-        info = self._get_dyn_sale('sell', name, city)
-        if info is None:
-            return None
         sinfo = self._get_sta_sell(name, city)
         if sinfo is None:
+            return None
+        info = self._get_dyn_sale('sell', name, city, force = True)
+        if info is None:
             return None
         info['base'] = sinfo
         return info
