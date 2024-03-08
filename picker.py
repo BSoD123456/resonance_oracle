@@ -4,7 +4,8 @@
 import os, os.path
 import json, re
 import time
-from urllib import request, parse
+from urllib import request, parse, error as uerr
+from socket import error as serr
 
 DOM_URL = 'https://www.resonance-columba.com'
 DAT_URL = '/api/get-prices'
@@ -40,20 +41,22 @@ TIRED_TAB = {
 class c_raw_picker:
 
     def __init__(self, dom_url, dat_url,
-            sta_thr = 3600 * 24, dyn_thr = 60 * 20, enc = 'utf-8'):
+            sta_thr = 3600 * 24, dyn_thr = 60 * 20,
+            enc = 'utf-8', timeout = 10):
         self.enc = 'utf-8'
+        self.timeout = timeout
         self.dom_url = dom_url
         self.dat_url = parse.urljoin(dom_url, dat_url)
         self.sta_thr = sta_thr
         self.dyn_thr = dyn_thr
-        self._update()
+        self.update()
 
     def _get_dynamic(self, url):
-        resp = request.urlopen(url)
+        resp = request.urlopen(url, timeout = self.timeout)
         return json.load(resp)['data']
 
     def _get_static(self, url):
-        resp = request.urlopen(url)
+        resp = request.urlopen(url, timeout = self.timeout)
         raw = resp.read().decode(self.enc)
         m = re.search(r'<script src\s*=\s*\"([^\"]+?page-\w+\.js)"', raw)
         url = parse.urljoin(self.dom_url, m.group(1))
@@ -85,27 +88,42 @@ class c_raw_picker:
             pass
         return dat
 
-    def _update(self):
+    def update(self):
         upd_time = time.time()
-        self.sta_dat = self._cache(
-            upd_time,
-            self.sta_thr,
-            'static.json',
-            lambda: self._get_static(self.dom_url))
-        self.dyn_dat = self._cache(
-            upd_time,
-            self.dyn_thr,
-            'dynamic.json',
-            lambda: self._get_dynamic(self.dat_url))
+        try:
+            self.sta_dat = self._cache(
+                upd_time,
+                self.sta_thr,
+                'static.json',
+                lambda: self._get_static(self.dom_url))
+            self.dyn_dat = self._cache(
+                upd_time,
+                self.dyn_thr,
+                'dynamic.json',
+                lambda: self._get_dynamic(self.dat_url))
+        except (uerr.URLError, serr) as e:
+            return False
+        except:
+            raise
+        return True
 
 class c_picker(c_raw_picker):
 
-    def __init__(self, *args, tired_tab, **kargs):
+    def __init__(self, *args, tired_tab, glb_cfg, **kargs):
+        self.udat = {
+            'cfg': glb_cfg,
+            'tired': tired_tab,
+        }
         super().__init__(*args, **kargs)
+
+    def update(self):
+        if not super().update():
+            return False
         self.gdat = {}
-        self.gdat['tired'] = self._get_tired_tab(tired_tab)
+        self.gdat['tired'] = self._get_tired_tab(self.udat['tired'])
         self.gdat['item'] = self._get_item_list()
         self.gdat['city'] = self._get_city_list(self.gdat['item'])
+        return True
 
     def _pick_tired(self, tab, i1, i2):
         if i1 == i2:
@@ -235,8 +253,11 @@ class c_picker(c_raw_picker):
         info['base'] = sinfo
         return info
 
+from configurator import GLB_CFG
+
 def make_picker():
-    return c_picker(DOM_URL, DAT_URL, tired_tab = TIRED_TAB)
+    return c_picker(DOM_URL, DAT_URL,
+        tired_tab = TIRED_TAB, glb_cfg = GLB_CFG)
 
 if __name__ == '__main__':
     from pdb import pm
