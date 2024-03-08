@@ -108,7 +108,7 @@ class c_router:
                             num = buy_info['number']
                         else:
                             num = 0
-                        profits[nm] = (nm, prf, num)
+                        profits[nm] = ((src, dst), prf, num)
         total = sum(p * n for _, p, n in profits.values())
         return profits, total
 
