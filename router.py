@@ -40,9 +40,8 @@ class c_route:
 
 class c_router:
 
-    def __init__(self, city_list, tired_tab):
-        assert(len(city_list) > 1)
-        self.city = city_list
+    def __init__(self, predictor, tired_tab):
+        self.prd = predictor
         self.tired = tired_tab
 
     def _pick_tired(self, tab, i1, i2):
@@ -74,16 +73,58 @@ class c_router:
                 wk.add(dbseq[i:i+n])
             yield seq
 
-    def iter_route(self):
-        clst = self.city
-        for iseq in self._iter_idx(len(clst)):
-            path = tuple(clst[i] for i in iseq)
+    def _iter_route(self, cgrp):
+        assert len(cgrp) > 1
+        for iseq in self._iter_idx(len(cgrp)):
+            path = tuple(cgrp[i] for i in iseq)
             yield c_route(path, tuple(self._iter_tired(path)))
+
+    def _calc_profit(self, city_list, cgrp, time):
+        profits = {}
+        for src in cgrp:
+            buy_list = {
+                nm: self.prd.get_buy(nm, src, time)
+                for nm in city_list[src]
+            }
+            for dst in cgrp:
+                if src == dst:
+                    continue
+                for nm, buy_info in buy_list.items():
+                    sell_info = self.prd.get_sell(nm, dst, time)
+                    if sell_info is None:
+                        #assert self.prd.pck.get_buy(nm, dst) # static price missed sometimes
+                        continue
+                    prf = sell_info['price'] - buy_info['price']
+                    if not nm in profits or prf > profits[nm][1]:
+                        if prf > 0:
+                            num = buy_info['number']
+                        else:
+                            num = 0
+                        profits[nm] = (nm, prf, num)
+        total = sum(p * n for _, p, n in profits.values())
+        return profits, total
+
+    def _iter_group(self, n, time):
+        city_list = self.prd.pck.get_city_list()
+        for cgrp in itertools.combinations(city_list.keys(), n):
+            profits, total = self._calc_profit(city_list, cgrp, time)
+            yield cgrp, total, profits
+
+    def _sorted_group(self, mxn, time):
+        return sorted((
+                ginfo
+                for n in range(2, mxn + 1)
+                for ginfo in self._iter_group(n, time)
+            ),
+            key = lambda ginfo: ginfo[1], reverse = True)
+
+from predictor import make_predictor
+
+def make_router():
+    return c_router(make_predictor(), TIRED_TAB)
 
 if __name__ == '__main__':
     from pdb import pm
     from pprint import pprint as ppr
 
-    foo = c_router(['七号自由港', '修格里城', '曼德矿场', '淘金乐园'], TIRED_TAB)
-    #for i in foo.iter_route():
-    #    print(i.path, i.tlst, i.tired)
+    rtr = make_router()

@@ -32,7 +32,7 @@ class c_predictor:
                 'up': up,
                 'sale': sale,
             })
-        ritm['price'] = ritm['base'] * ritm['sale']
+        ritm['price'] = ritm['base'] * ritm['sale'] / 100
         return ritm
 
     def get_buy(self, name, city, time = None):
