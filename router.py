@@ -78,6 +78,12 @@ class c_router:
             profits, total = self._calc_profit(city_list, cgrp, time)
             yield cgrp, total, profits
 
+    def calc_market(self, time = None):
+        city_list = self.prd.get_picker().get_city_list()
+        cgrp = tuple(city_list.keys())
+        profits, total = self._calc_profit(city_list, cgrp, time)
+        return total, profits
+
     def iter_routes(self, mxn, time):
         for cgrp, total, profits in (
                 ginfo
