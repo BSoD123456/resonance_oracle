@@ -226,11 +226,11 @@ class c_picker(c_raw_picker):
         itm = self.dyn_dat['data'].get(name, {}).get(tkey, {}).get(city, None)
         if itm is None:
             if force:
-                # just guess 80% for missing sale info
+                # just guess 100% for missing sale info
                 return {
                     'time': nowtime(),
                     'up': False,
-                    'sale': 80,
+                    'sale': 100,
                 }
             else:
                 return None
