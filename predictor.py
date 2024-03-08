@@ -5,7 +5,7 @@ import time
 
 DUMB_CFG = {
     'period': 20,
-    'threshold': 60,
+    'threshold': 20, #60,
     'step': 2,
     'range': (80, 120),
 }
