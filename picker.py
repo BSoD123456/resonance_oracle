@@ -9,6 +9,34 @@ from urllib import request, parse
 DOM_URL = 'https://www.resonance-columba.com'
 DAT_URL = '/api/get-prices'
 
+TIRED_TAB = {
+    'i': {
+        n: i
+        for i, n in enumerate([
+            '阿妮塔能源研究所',
+            '阿妮塔战备工厂',
+            '七号自由港',
+            '澄明数据中心',
+            '修格里城',
+            '铁盟哨站',
+            '荒原站',
+            '曼德矿场',
+            '淘金乐园',
+        ])
+    },
+    'v': [
+        [23, # not sure
+         23, 28, 31, 34, 38, 39, 44],
+        [23, 27, 30, 33, 37, 38, 43], # not sure
+        [24, 27, 30, 33, 34, 39],
+        [24, 23, 26, 27, 33],
+        [23, 23, 24, 27],
+        [23, 23, 23],
+        [23, 24],
+        [24],
+    ]
+}
+
 class c_raw_picker:
 
     def __init__(self, dom_url, dat_url,
@@ -72,18 +100,61 @@ class c_raw_picker:
 
 class c_picker(c_raw_picker):
 
-    def __init__(self, *args, **kargs):
+    def __init__(self, *args, tired_tab, **kargs):
         super().__init__(*args, **kargs)
         self.gdat = {}
+        self.gdat['tired'] = self._get_tired_tab(tired_tab)
         self.gdat['item'] = self._get_item_list()
         self.gdat['city'] = self._get_city_list(self.gdat['item'])
+
+    def _pick_tired(self, tab, i1, i2):
+        if i1 == i2:
+            return 0
+        elif i1 > i2:
+            _v = i2
+            i2 = i1
+            i1 = _v
+        return tab[i1][i2 - i1 - 1]
+
+    def _get_tired_tab(self, tab):
+        itab = tab['i']
+        vtab = tab['v']
+        rtab = {}
+        for i1, c1 in enumerate(itab):
+            ln = {}
+            for i2, c2 in enumerate(itab):
+                ln[c2] = self._pick_tired(vtab, i1, i2)
+            rtab[c1] = ln
+        return rtab
+
+    def get_tired(self, c1, c2):
+        return self.gdat['tired'].get(c1, {}).get(c2, None)
 
     def _get_item_list(self):
         tlst = {}
         for itm in self.sta_dat['data']:
             nm = itm['name']
             assert not nm in tlst
-            tlst[nm] = itm
+            ritm = itm.copy()
+            sls = ritm['sellPrices']
+            for c, prc in sls.items():
+                if not prc is None:
+                    continue
+                elif not ritm.get('buyPrices', {}).get(c, None) is None:
+                    continue
+                # guess missing base sell price
+                for t, s in sorted((
+                        (t, s)
+                        for s, t in self.gdat['tired'].get(c, {}).items()
+                        if t > 0
+                    ),
+                    key = lambda v: v[0]
+                ):
+                    nprc = sls.get(s, None)
+                    if not nprc is None:
+                        sls[c] = nprc
+                        break
+            tlst[nm] = ritm
         return tlst
 
     def _get_city_list(self, tlst):
@@ -165,7 +236,7 @@ class c_picker(c_raw_picker):
         return info
 
 def make_picker():
-    return c_picker(DOM_URL, DAT_URL)
+    return c_picker(DOM_URL, DAT_URL, tired_tab = TIRED_TAB)
 
 if __name__ == '__main__':
     from pdb import pm

@@ -3,34 +3,6 @@
 
 import itertools
 
-TIRED_TAB = {
-    'i': {
-        n: i
-        for i, n in enumerate([
-            '阿妮塔能源研究所',
-            '阿妮塔战备工厂',
-            '七号自由港',
-            '澄明数据中心',
-            '修格里城',
-            '铁盟哨站',
-            '荒原站',
-            '曼德矿场',
-            '淘金乐园',
-        ])
-    },
-    'v': [
-        [23, # not sure
-         23, 28, 31, 34, 38, 39, 44],
-        [23, 27, 30, 33, 37, 38, 43], # not sure
-        [24, 27, 30, 33, 34, 39],
-        [24, 23, 26, 27, 33],
-        [23, 23, 24, 27],
-        [23, 23, 23],
-        [23, 24],
-        [24],
-    ]
-}
-
 class c_route:
 
     def __init__(self, path, tired, profits, total = None):
@@ -48,27 +20,14 @@ class c_route:
 
 class c_router:
 
-    def __init__(self, predictor, tired_tab):
+    def __init__(self, predictor):
         self.prd = predictor
-        self.tired = tired_tab
-
-    def _pick_tired(self, tab, i1, i2):
-        if i1 == i2:
-            return 0
-        elif i1 > i2:
-            _v = i2
-            i2 = i1
-            i1 = _v
-        return tab[i1][i2 - i1 - 1]
 
     def _iter_tired(self, path):
-        itab = self.tired['i']
-        vtab = self.tired['v']
-        ipath = [itab[n] for n in path]
-        lp = len(ipath)
+        lp = len(path)
         for i in range(lp -1):
-            yield self._pick_tired(vtab, ipath[i], ipath[i + 1])
-        yield self._pick_tired(vtab, ipath[lp - 1], ipath[0])
+            yield self.prd.get_picker().get_tired(path[i], path[i + 1])
+        yield self.prd.get_picker().get_tired(path[lp - 1], path[0])
 
     @staticmethod
     def _iter_idx(n):
@@ -100,9 +59,7 @@ class c_router:
                 for nm, buy_info in buy_list.items():
                     sell_info = self.prd.get_sell(nm, dst, time)
                     if sell_info is None:
-                        if not self.prd.get_picker().get_buy(nm, dst):
-                            #sell_info = self._guess_sell(nm, dst)
-                            pass
+                        assert self.prd.get_picker().get_buy(nm, dst)
                         continue
                     prf = sell_info['price'] - buy_info['price']
                     pkey = (nm, src)
@@ -145,7 +102,7 @@ class c_router:
 from predictor import make_predictor
 
 def make_router():
-    return c_router(make_predictor(), TIRED_TAB)
+    return c_router(make_predictor())
 
 if __name__ == '__main__':
     from pdb import pm
