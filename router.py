@@ -33,10 +33,18 @@ TIRED_TAB = {
 
 class c_route:
 
-    def __init__(self, path, tired):
+    def __init__(self, path, tired, profits, total = None):
         self.path = path
         self.tlst = tired
         self.tired = sum(tired)
+        if total is None:
+            total = sum(p * n for _, p, n in profits.values())
+        self.profits = profits
+        self.total = total
+        self.benefit = total / self.tired
+
+    def __repr__(self):
+        return f'<rt {len(self.path)}: {", ".join(self.path)} | {self.benefit:.2f}: {self.total:.2f}/{self.tired}>'
 
 class c_router:
 
@@ -77,7 +85,7 @@ class c_router:
         assert len(cgrp) > 1
         for iseq in self._iter_idx(len(cgrp)):
             path = tuple(cgrp[i] for i in iseq)
-            yield c_route(path, tuple(self._iter_tired(path)))
+            yield path, tuple(self._iter_tired(path))
 
     def _calc_profit(self, city_list, cgrp, time):
         profits = {}
@@ -110,13 +118,26 @@ class c_router:
             profits, total = self._calc_profit(city_list, cgrp, time)
             yield cgrp, total, profits
 
-    def _sorted_group(self, mxn, time):
-        return sorted((
+    def iter_routes(self, mxn, time):
+        for cgrp, total, profits in (
                 ginfo
                 for n in range(2, mxn + 1)
-                for ginfo in self._iter_group(n, time)
-            ),
-            key = lambda ginfo: ginfo[1], reverse = True)
+                for ginfo in self._iter_group(n, time)):
+            rtt = {}
+            for path, tired in self._iter_route(cgrp):
+                route = c_route(path, tired, profits, total)
+                tt = route.tired
+                if tt in rtt:
+                    rtt[tt].append(route)
+                else:
+                    rtt[tt] = [route]
+            for rts in rtt.values():
+                yield rts, rts[0].benefit
+
+    def sorted_routes(self, mxn = 4, time = None):
+        return [rts for rts, _ in sorted(
+            self.iter_routes(mxn, time),
+            key = lambda i: i[1], reverse = True)]
 
 from predictor import make_predictor
 
