@@ -18,6 +18,9 @@ class c_predictor:
     def _predict_sale(self, cur, stamp, val, up):
         return None
 
+    def get_picker(self):
+        return self.pck
+
     def _get_sale(self, itm, cur):
         if cur is None:
             cur = time.time()

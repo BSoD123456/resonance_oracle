@@ -136,7 +136,8 @@ class c_picker(c_raw_picker):
             return None
         up = (itm.get('trend') == 'up')
         time = itm.get('time', {})
-        time = time.get('_seconds', -1) + time.get('_nanoseconds', 0) / 1e9
+        # time reformat only for old version
+        #time = time.get('_seconds', -1) + time.get('_nanoseconds', 0) / 1e9
         return {
             'time': time,
             'up': up,

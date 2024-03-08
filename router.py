@@ -100,20 +100,23 @@ class c_router:
                 for nm, buy_info in buy_list.items():
                     sell_info = self.prd.get_sell(nm, dst, time)
                     if sell_info is None:
-                        #assert self.prd.pck.get_buy(nm, dst) # static price missed sometimes
+                        if not self.prd.get_picker().get_buy(nm, dst):
+                            #sell_info = self._guess_sell(nm, dst)
+                            pass
                         continue
                     prf = sell_info['price'] - buy_info['price']
-                    if not nm in profits or prf > profits[nm][1]:
+                    pkey = (nm, src)
+                    if not pkey in profits or prf > profits[pkey][1]:
                         if prf > 0:
                             num = buy_info['number']
                         else:
                             num = 0
-                        profits[nm] = ((src, dst), prf, num)
+                        profits[pkey] = (dst, prf, num)
         total = sum(p * n for _, p, n in profits.values())
         return profits, total
 
     def _iter_group(self, n, time):
-        city_list = self.prd.pck.get_city_list()
+        city_list = self.prd.get_picker().get_city_list()
         for cgrp in itertools.combinations(city_list.keys(), n):
             profits, total = self._calc_profit(city_list, cgrp, time)
             yield cgrp, total, profits
