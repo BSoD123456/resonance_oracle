@@ -4,11 +4,7 @@
 class c_base_terminal:
 
     def __init__(self):
-        self.stat = 'idle'
-        self.stck = []
-        self.rseq = []
-        self.ictx = {}
-        self.ctx = {}
+        pass
 
     def _invoke(self, key, stat, *args, **kargs):
         mn = '_'.join([key, stat])
@@ -18,47 +14,50 @@ class c_base_terminal:
         return mtd(*args, **kargs)
 
     def goto(self, stat, **ctx):
-        if self.stat == stat:
-            return
-        self.rseq.append((self.stat, stat, ctx))
-        self.stat = stat
+        return (stat,), ctx
 
-    def push(self, stat, **ctx):
-        self.stck.append(self.stat)
-        self.goto(stat, **ctx)
+    def push(self, stat, nxt = None, **ctx):
+        cmd = ('+', stat)
+        if not nxt is None:
+            cmd = (nxt,) + cmd
+        return cmd, ctx
 
     def pop(self, **ctx):
-        self.goto(self.stck.pop(), **ctx)
+        return ('-',), ctx
 
-    def _resolve_one(self):
-        if not self.rseq:
-            return False
-        leave, enter, ctx = self.rseq.pop(0)
-        self._invoke('stat', enter, sta_from = leave, **ctx)
-        return True
+    def _resolve(self, stat, stack, ctx):
+        cmd, ctx = self._invoke('stat', stat, **ctx)
+        for c in cmd:
+            if c == '+':
+                stack.append(stat)
+            elif c == '-':
+                stat = stack.pop()
+            else:
+                stat = c
+        return stat, stack, ctx
 
     def _parse_input(self):
-        return input('>> ')
+        return input('>> ').strip().split()
 
     def stat_input(self, **ctx):
-        self.pop(ipt = self._parse_input())
+        return self.pop(ipt = self._parse_input())
 
     def run(self):
-        self.goto('init')
-        while self._resolve_one():
-            pass
-        self.goto('idle')
-        self._resolve_one()
+        stat = 'init'
+        stack = []
+        ctx = {}
+        while not stat is None:
+            stat, stack, ctx = self._resolve(stat, stack, ctx)
 
 class c_terminal(c_base_terminal):
 
     def stat_init(self, **ctx):
         print('init')
-        self.goto('main')
+        return self.push('input', 'main')
 
     def stat_main(self, ipt = None, **ctx):
         print('main', ipt)
-        self.push('input')
+        return self.push('input')
 
 if __name__ == '__main__':
     from pdb import pm
