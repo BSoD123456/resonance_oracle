@@ -1,7 +1,7 @@
 #! python3
 # coding: utf-8
 
-class c_base_terminal:
+class c_state_machine:
 
     def __init__(self):
         pass
@@ -36,18 +36,20 @@ class c_base_terminal:
                 stat = c
         return stat, stack, ctx
 
-    def _parse_input(self):
-        return input('>> ').strip().split()
-
-    def stat_input(self, **ctx):
-        return self.pop(ipt = self._parse_input())
-
     def run(self):
         stat = 'init'
         stack = []
         ctx = {}
         while not stat is None:
             stat, stack, ctx = self._resolve(stat, stack, ctx)
+
+class c_base_terminal(c_state_machine):
+
+    def _parse_input(self):
+        return input('>> ').strip().split()
+
+    def stat_input(self, **ctx):
+        return self.pop(ipt = self._parse_input())
 
 class c_terminal(c_base_terminal):
 
