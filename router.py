@@ -3,18 +3,22 @@
 
 import itertools
 
+INF = float('inf')
+
 class c_route:
 
-    def __init__(self, path, grpkey, tired, profits, total = None):
+    def __init__(self, path, grpkey, tired, profits, total_tired = None, total_profit = None):
         self.path = path
         self.grpkey = grpkey
         self.tlst = tired
-        self.tired = sum(tired)
-        if total is None:
-            total = sum(p * n for _, p, n in profits.values())
+        if total_tired is None:
+            total_tired = sum(tired)
+        self.tired = total_tired
+        if total_profit is None:
+            total_profit = sum(p * n for _, p, n in profits.values())
         self.profits = profits
-        self.total = total
-        self.benefit = total / self.tired
+        self.total = total_profit
+        self.benefit = total_profit / self.tired
 
     def __repr__(self):
         return f'<rt {len(self.path)}: {self.grpkey:X} {", ".join(self.path)} | {self.benefit:.2f}: {self.total:.2f}/{self.tired}>'
@@ -99,16 +103,19 @@ class c_router:
                 ginfo
                 for n in range(2, mxn + 1)
                 for ginfo in self._iter_group(n, time)):
-            rtt = {}
-            for path, tired in self._iter_route(cgrp):
-                route = c_route(path, grpkey, tired, profits, total)
-                tt = route.tired
-                if tt in rtt:
-                    rtt[tt].append(route)
-                else:
-                    rtt[tt] = [route]
-            for rts in rtt.values():
-                yield rts, rts[0].benefit
+            min_tired = INF
+            min_rts = []
+            for path, tlst in self._iter_route(cgrp):
+                tired = sum(tlst)
+                if tired > min_tired:
+                    continue
+                elif tired < min_tired:
+                    min_tired = tired
+                    min_rts = []
+                route = c_route(path, grpkey, tlst, profits,
+                    total_tired = tired, total_profit = total)
+                min_rts.append(route)
+            yield min_rts, min_rts[0].benefit
 
     def sorted_routes(self, mxn = 4, time = None):
         return [rts for rts, _ in sorted(
