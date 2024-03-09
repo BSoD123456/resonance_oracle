@@ -5,8 +5,9 @@ import itertools
 
 class c_route:
 
-    def __init__(self, path, tired, profits, total = None):
+    def __init__(self, path, grpkey, tired, profits, total = None):
         self.path = path
+        self.grpkey = grpkey
         self.tlst = tired
         self.tired = sum(tired)
         if total is None:
@@ -16,12 +17,18 @@ class c_route:
         self.benefit = total / self.tired
 
     def __repr__(self):
-        return f'<rt {len(self.path)}: {", ".join(self.path)} | {self.benefit:.2f}: {self.total:.2f}/{self.tired}>'
+        return f'<rt {len(self.path)}: {self.grpkey:X} {", ".join(self.path)} | {self.benefit:.2f}: {self.total:.2f}/{self.tired}>'
 
 class c_router:
 
     def __init__(self, predictor):
         self.prd = predictor
+
+    def update(self):
+        return self.prd.update()
+
+    def get_config(self):
+        return self.pck.get_config()
 
     def _iter_tired(self, path):
         lp = len(path)
@@ -74,9 +81,12 @@ class c_router:
 
     def _iter_group(self, n, time):
         city_list = self.prd.get_picker().get_city_list()
-        for cgrp in itertools.combinations(city_list.keys(), n):
+        ckeys = list(city_list.keys())
+        for igrp in itertools.combinations(range(len(ckeys)), n):
+            cgrp = tuple(ckeys[i] for i in igrp)
+            grpkey = sum(1 << i for i in igrp)
             profits, total = self._calc_profit(city_list, cgrp, time)
-            yield cgrp, total, profits
+            yield cgrp, grpkey, total, profits
 
     def calc_market(self, time = None):
         city_list = self.prd.get_picker().get_city_list()
@@ -85,13 +95,13 @@ class c_router:
         return total, profits
 
     def iter_routes(self, mxn, time):
-        for cgrp, total, profits in (
+        for cgrp, grpkey, total, profits in (
                 ginfo
                 for n in range(2, mxn + 1)
                 for ginfo in self._iter_group(n, time)):
             rtt = {}
             for path, tired in self._iter_route(cgrp):
-                route = c_route(path, tired, profits, total)
+                route = c_route(path, grpkey, tired, profits, total)
                 tt = route.tired
                 if tt in rtt:
                     rtt[tt].append(route)

@@ -1,6 +1,8 @@
 #! python3
 # coding: utf-8
 
+from time import time as nowtime
+
 class c_state_machine:
 
     def __init__(self):
@@ -51,18 +53,70 @@ class c_base_terminal(c_state_machine):
     def stat_input(self, **ctx):
         return self.pop(ipt = self._parse_input())
 
+from router import make_router
+
 class c_terminal(c_base_terminal):
 
-    def stat_init(self, **ctx):
-        print('init')
-        return self.push('input', 'main')
+    TIME_COLS = 4
+    TIME_STEP = 20
 
-    def stat_main(self, ipt = None, **ctx):
-        print('main', ipt)
-        return self.push('input')
+    def stat_init(self, **ctx):
+        self.router = make_router()
+        self.config = self.router.get_config()
+        while True:
+            print('正在从商会获取数据 ... ', end = '')
+            if self.router.update():
+                break
+            print('failed')
+            print('开始重试')
+        print('done')
+        return self.goto('main')
+
+    def stat_main(self, **ctx):
+        print('欢迎使用[索思学会]戏言神谕机，且听戏言:')
+        print('1: 行情预测')
+        print('c: 配置信息')
+        print('x: 退出')
+        return self.push('input', 'main_post')
+
+    def stat_main_post(self, ipt = None, **ctx):
+        cmd = ipt[0]
+        if cmd == '1':
+            return self.goto('rank', time_rng = (0, 60))
+        elif cmd == 'c':
+            return self.goto('config')
+        elif cmd == 'x':
+            return self.goto(None)
+        else:
+            return self.push('input', 'main_post')
+
+    @staticmethod
+    def _rng_seq(mn, mx, n):
+        if n < 1:
+            return []
+        elif n == 1 or mn == mx:
+            return [int(mn)]
+        elif mx < mn:
+            _t = mx
+            mx = mn
+            mn = _t
+        stp = (mx - mn) / (n - 1)
+        return [*(round(mn + i * stp) for i in range(n-1)), round(mx)]
+
+    @staticmethod
+    def _rng_seq_stp(mn, mx, stp):
+        return [*range(int(round(mn)), int(round(mx + stp / 2)), stp)]
+
+    def stat_rank(self, time_rng, **ctx):
+        cur = nowtime()
+        rt = self.router
+        max_cities = self.config.get(['terminal', 'max cities'], 3)
+        for tm in self._rng_seq_stp(*time_rng, self.TIME_STEP):
+            
 
 if __name__ == '__main__':
     from pdb import pm
     from pprint import pprint as ppr
 
-    foo = c_terminal()
+    tm = c_terminal()
+    tm.run()

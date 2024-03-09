@@ -26,15 +26,15 @@ TIRED_TAB = {
         ])
     },
     'v': [
-        [23, # not sure
-         23, 28, 31, 34, 38, 39, 44],
-        [23, 27, 30, 33, 37, 38, 43], # not sure
-        [24, 26, 30, 33, 34, 39],
-        [23, 23, 26, 27, 32],
-        [23, 23, 23, 26],
-        [23, 23, 23],
-        [23, 24],
-        [23],
+        [24, # not sure
+         24, 29, 32, 35, 39, 40, 45],
+        [24, 28, 31, 34, 38, 39, 44], # not sure
+        [25, 27, 31, 34, 35, 40],
+        [24, 24, 27, 28, 33],
+        [24, 24, 24, 27],
+        [24, 24, 24],
+        [24, 25],
+        [24],
     ]
 }
 
@@ -49,7 +49,6 @@ class c_raw_picker:
         self.dat_url = parse.urljoin(dom_url, dat_url)
         self.sta_thr = sta_thr
         self.dyn_thr = dyn_thr
-        self.update()
 
     def _get_dynamic(self, url):
         resp = request.urlopen(url, timeout = self.timeout)
@@ -110,7 +109,7 @@ class c_raw_picker:
 class c_picker(c_raw_picker):
 
     def __init__(self, *args, tired_tab, glb_cfg, **kargs):
-        self.gcfg = glb_cfg
+        self.cfg = glb_cfg
         self.udat = {
             'tired': tired_tab,
         }
@@ -125,23 +124,27 @@ class c_picker(c_raw_picker):
         self.gdat['city'] = self._get_city_list(self.gdat['item'])
         return True
 
-    def _pick_tired(self, tab, i1, i2):
+    def get_config(self):
+        return self.cfg
+
+    def _pick_tired(self, tab, i1, i2, ofs):
         if i1 == i2:
             return 0
         elif i1 > i2:
             _v = i2
             i2 = i1
             i1 = _v
-        return tab[i1][i2 - i1 - 1]
+        return tab[i1][i2 - i1 - 1] + ofs
 
     def _get_tired_tab(self, tab):
         itab = tab['i']
         vtab = tab['v']
         rtab = {}
+        tofs = - self.cfg.get(['skill', 'tired'], 1)
         for i1, c1 in enumerate(itab):
             ln = {}
             for i2, c2 in enumerate(itab):
-                ln[c2] = self._pick_tired(vtab, i1, i2)
+                ln[c2] = self._pick_tired(vtab, i1, i2, tofs)
             rtab[c1] = ln
         return rtab
 
@@ -207,7 +210,7 @@ class c_picker(c_raw_picker):
         number = itm.get('buyLot', {}).get(city, None)
         if price is None or number is None:
             return None
-        num_scale = self.gcfg.get(['num_scale', city, name])
+        num_scale = self.cfg.get(['num_scale', city, name])
         if not num_scale is None:
             number *= num_scale
         return {
@@ -264,11 +267,11 @@ class c_picker(c_raw_picker):
         info['base'] = sinfo
         return info
 
-from configurator import GLB_CFG
+from configurator import make_config
 
 def make_picker():
     return c_picker(DOM_URL, DAT_URL,
-        tired_tab = TIRED_TAB, glb_cfg = GLB_CFG)
+        tired_tab = TIRED_TAB, glb_cfg = make_config())
 
 if __name__ == '__main__':
     from pdb import pm

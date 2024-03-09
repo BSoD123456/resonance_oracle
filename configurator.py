@@ -67,4 +67,5 @@ class c_configurator:
         if dirty:
             self._save()
 
-GLB_CFG = c_configurator()
+def make_config():
+    return c_configurator()

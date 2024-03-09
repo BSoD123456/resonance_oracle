@@ -15,11 +15,17 @@ class c_predictor:
     def __init__(self, picker):
         self.pck = picker
 
+    def update(self):
+        return self.pck.update()
+
     def _predict_sale(self, cur, stamp, val, up):
         return None
 
     def get_picker(self):
         return self.pck
+
+    def get_config(self):
+        return self.pck.get_config()
 
     def _get_sale(self, itm, cur):
         if cur is None:
