@@ -51,7 +51,7 @@ class c_base_terminal(c_state_machine):
         return input('>> ').strip().split()
 
     def stat_input(self, **ctx):
-        return self.pop(ipt = self._parse_input())
+        return self.pop(ipt = self._parse_input(), **ctx)
 
 from router import make_router
 
@@ -75,7 +75,7 @@ class c_terminal(c_base_terminal):
     def stat_main(self, **ctx):
         print('欢迎使用[索思学会]戏言神谕机，且听戏言:')
         print('1: 行情预测')
-        print('c: 配置信息')
+        print('c: 配置车组信息')
         print('x: 退出')
         return self.push('input', 'main_post')
 
@@ -123,7 +123,22 @@ class c_terminal(c_base_terminal):
         for i, (rts, ben) in enumerate(rank):
             rt = rts[0]
             print(f'{i+1}: 平均利润:{ben:.2f} 线路:{rt.plen}站 {rt.repr_path()}')
-        return self.goto('main')
+        print('d: 详细走势')
+        print('t: 修改时间')
+        print('c: 配置统计信息')
+        print('x: 退出')
+        return self.push('input', 'rank_post', time_rng = time_rng)
+
+    def stat_rank_post(self, ipt, time_rng, **ctx):
+        cmd = ipt[0]
+        if cmd == 'd':
+            pass
+        elif cmd == 'c':
+            pass
+        elif cmd == 'x':
+            pass
+        else:
+            pass
 
 if __name__ == '__main__':
     from pdb import pm
