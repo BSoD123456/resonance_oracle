@@ -17,42 +17,48 @@ class c_base_terminal:
             return
         return mtd(*args, **kargs)
 
-    def goto(self, stat):
+    def goto(self, stat, **ctx):
         if self.stat == stat:
             return
-        self.rseq.append((self.stat, stat))
+        self.rseq.append((self.stat, stat, ctx))
         self.stat = stat
 
-    def push(self, stat):
+    def push(self, stat, **ctx):
         self.stck.append(self.stat)
-        self.goto(stat)
+        self.goto(stat, **ctx)
 
-    def pop(self):
-        self.goto(self.stck.pop())
+    def pop(self, **ctx):
+        self.goto(self.stck.pop(), **ctx)
 
     def _resolve_one(self):
         if not self.rseq:
             return False
-        sw = self.rseq.pop(0)
-        self.ictx['sta_sw'] = sw
-        lv, en = sw
-        self._invoke('leave', lv)
-        self._invoke('enter', en)
+        leave, enter, ctx = self.rseq.pop(0)
+        self._invoke('stat', enter, sta_from = leave, **ctx)
         return True
 
     def _parse_input(self):
-        return input('>>')
+        return input('>> ')
+
+    def stat_input(self, **ctx):
+        self.pop(ipt = self._parse_input())
 
     def run(self):
         self.goto('init')
         while self._resolve_one():
-            self.ictx['input'] = self._parse_input()
+            pass
         self.goto('idle')
         self._resolve_one()
 
 class c_terminal(c_base_terminal):
 
-    pass
+    def stat_init(self, **ctx):
+        print('init')
+        self.goto('main')
+
+    def stat_main(self, ipt = None, **ctx):
+        print('main', ipt)
+        self.push('input')
 
 if __name__ == '__main__':
     from pdb import pm
