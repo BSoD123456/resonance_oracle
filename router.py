@@ -9,6 +9,7 @@ class c_route:
 
     def __init__(self, path, grpkey, tired, profits, total_tired = None, total_profit = None):
         self.path = path
+        self.plen = len(path)
         self.grpkey = grpkey
         self.tlst = tired
         if total_tired is None:
@@ -19,6 +20,9 @@ class c_route:
         self.profits = profits
         self.total = total_profit
         self.benefit = total_profit / self.tired
+
+    def repr_path(self):
+        return ' -> '.join((*self.path, self.path[0]))
 
     def __repr__(self):
         return f'<rt {len(self.path)}: {self.grpkey:X} {", ".join(self.path)} | {self.benefit:.2f}: {self.total:.2f}/{self.tired}>'
@@ -32,7 +36,7 @@ class c_router:
         return self.prd.update()
 
     def get_config(self):
-        return self.pck.get_config()
+        return self.prd.get_config()
 
     def _iter_tired(self, path):
         lp = len(path)
@@ -98,6 +102,12 @@ class c_router:
         profits, total = self._calc_profit(city_list, cgrp, time)
         return total, profits
 
+    def calc_prd_market(self, time_seq):
+        total = 0
+        for time in time_seq:
+            total += self.calc_market(time)[0]
+        return total / len(time_seq)
+
     def iter_routes(self, mxn, time):
         for cgrp, grpkey, total, profits in (
                 ginfo
@@ -115,11 +125,24 @@ class c_router:
                 route = c_route(path, grpkey, tlst, profits,
                     total_tired = tired, total_profit = total)
                 min_rts.append(route)
-            yield min_rts, min_rts[0].benefit
+            yield min_rts, min_rts[0].benefit, grpkey
 
-    def sorted_routes(self, mxn = 4, time = None):
-        return [rts for rts, _ in sorted(
+    def sorted_routes(self, mxn, time = None):
+        return [rts for rts, _, _ in sorted(
             self.iter_routes(mxn, time),
+            key = lambda i: i[1], reverse = True)]
+
+    def sorted_prd_routes(self, mxn, time_seq):
+        rs = {}
+        for time in time_seq:
+            for rts, ben, gkey in self.iter_routes(mxn, time):
+                if gkey in rs:
+                    rs[gkey][1] += ben
+                else:
+                    rs[gkey] = [rts, ben]
+        tlen = len(time_seq)
+        return [(rts, ben / tlen) for rts, ben in sorted(
+            rs.values(),
             key = lambda i: i[1], reverse = True)]
 
 from predictor import make_predictor

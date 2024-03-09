@@ -1,7 +1,7 @@
 #! python3
 # coding: utf-8
 
-from time import time as nowtime
+from time import ctime, time as nowtime
 
 class c_state_machine:
 
@@ -109,10 +109,20 @@ class c_terminal(c_base_terminal):
 
     def stat_rank(self, time_rng, **ctx):
         cur = nowtime()
-        rt = self.router
+        print(f'预测时间: {ctime(cur)}')
+        print(f'预测范围: {time_rng[0]} 分 ~ {time_rng[1]} 分')
+        rtr = self.router
         max_cities = self.config.get(['terminal', 'max cities'], 3)
-        for tm in self._rng_seq_stp(*time_rng, self.TIME_STEP):
-            
+        max_ranks = self.config.get(['terminal', 'max ranks'], 5)
+        tseq = [cur + t * 60 for t in self._rng_seq_stp(
+            *time_rng, self.TIME_STEP)]
+        mktt = rtr.calc_prd_market(tseq)
+        print(f'大盘总利润: {mktt:.2f}')
+        rank = rtr.sorted_prd_routes(
+            max_cities, tseq)[:max_ranks]
+        for i, (rts, ben) in enumerate(rank):
+            rt = rts[0]
+            print(f'{i+1}. 平均利润:{ben:.2f} 线路:{rt.plen}站 {rt.repr_path()}')
 
 if __name__ == '__main__':
     from pdb import pm
