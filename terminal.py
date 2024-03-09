@@ -122,7 +122,8 @@ class c_terminal(c_base_terminal):
             max_cities, tseq)[:max_ranks]
         for i, (rts, ben) in enumerate(rank):
             rt = rts[0]
-            print(f'{i+1}. 平均利润:{ben:.2f} 线路:{rt.plen}站 {rt.repr_path()}')
+            print(f'{i+1}: 平均利润:{ben:.2f} 线路:{rt.plen}站 {rt.repr_path()}')
+        return self.goto('main')
 
 if __name__ == '__main__':
     from pdb import pm
