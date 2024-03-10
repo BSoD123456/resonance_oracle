@@ -312,7 +312,7 @@ class c_terminal(c_base_terminal):
                     (['reputation', ctx['city']], val),
                 ],
             ), (
-                lambda cfg, ctx: f'忽略: {ctx["blck"]}',
+                lambda cfg, ctx: f'忽略: {"yes" if ctx["blck"] else "no"}',
                 lambda cfg, ctx:
                     f'城市: {ctx["city"]}\n'
                     f'忽略: {"yes" if ctx["blck"] else "no"}\n'

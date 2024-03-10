@@ -202,8 +202,6 @@ class c_picker(c_raw_picker):
 
     def _calc_num_scale(self, name, city):
         cfg = self.cfg
-        if cfg.get(['city block', city]):
-            return 0
         if cfg.get(['item block', city, name]):
             return 0
         repu = cfg.get(['reputation', city])

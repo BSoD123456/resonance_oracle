@@ -93,8 +93,11 @@ class c_router:
         return profits, total
 
     def _iter_group(self, n, time):
+        cfg = self.get_config()
         city_list = self.prd.get_picker().get_city_list()
-        ckeys = list(city_list.keys())
+        ckeys = list(
+            c for c in city_list.keys()
+            if not cfg.get(['city block', c]))
         for igrp in itertools.combinations(range(len(ckeys)), n):
             cgrp = tuple(ckeys[i] for i in igrp)
             grpkey = sum(1 << i for i in igrp)
