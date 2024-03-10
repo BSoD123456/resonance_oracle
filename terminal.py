@@ -293,12 +293,23 @@ class c_terminal(c_base_terminal):
     PAGES = {
         'city': (
             lambda cfg, ctx: {
-                'repu': cfg.get(["reputation", ctx["city"]], 0),
+                'repu': cfg.get(['reputation', ctx['city']], 0),
+                'nscl': cfg.get(['num scale', ctx['city']], 0),
             },
             lambda cfg, ctx: f'{ctx["city"]}',
             [(
                 lambda cfg, ctx: f'声望 {ctx["repu"]}',
-                lambda cfg, ctx: f'声望 {ctx["repu"]}',
+                lambda cfg, ctx:
+                    f'城市: {ctx["city"]}\n'
+                    f'声望: {ctx["repu"]}\n'
+                    f'进货加成: {ctx["nscl"]}\n'
+                    '输入声望等级:',
+                lambda cfg, ctx, val: int(val[0]),
+                lambda cfg, ctx, val: val >= 0,
+                lambda cfg, ctx, val: [
+                    (['reputation', ctx['city']], val),
+                    (['num scale', ctx['city']], val * 10),
+                ],
             )],
         ),
         'market': [(
@@ -321,33 +332,69 @@ class c_terminal(c_base_terminal):
             intro = vf(intro)
             sels = []
             for citm in cfglist:
-                sels.append(tuple(vf(v) for v in citm))
+                sels.append((*(vf(v) for v in citm[:2]), *citm[2:]))
             pctx = {
                 'ctx': actx,
                 'intro': intro,
                 'sels': sels,
+                'octx': ctx,
             }
         print(pctx['intro'])
         for i, (title, *_) in enumerate(pctx['sels']):
             print(f'{i+1}: {title}')
         print('x: 返回')
         return self.ivk('input',
-            self.push('config_post', page = page, pctx = pctx, **ctx))
+            self.push('config_post', page = page, pctx = pctx))
 
     def stat_config_post(self, ipt, page, pctx, **ctx):
         cmd = ipt[0]
         sels = pctx['sels']
         if cmd.isdigit() and 1 <= int(cmd) <= len(sels):
             return self.goto('config_input',
-                desc = sels[int(cmd) - 1])
+                desc = sels[int(cmd) - 1], page = page, pctx = pctx)
         elif cmd == 'x':
             return self.pop(2)
         else:
             return self.ivk('input',
                 self.goto('config_post', page = page, pctx = pctx))
 
-    def stat_config_input(self, desc, **ctx):
-        pass
+    def stat_config_input(self, desc, page, pctx, **ctx):
+        _, intro, *_ = desc
+        print(intro)
+        print('x: 返回')
+        return self.ivk('input',
+            self.push('config_input_post',
+                desc = desc, page = page, pctx = pctx))
+
+    def stat_config_input_post(self, ipt, desc, page, pctx, **ctx):
+        if ipt[0] == 'x':
+            return self.pop(2, page = page, pctx = pctx)
+        cfg = self.config
+        _, _, prhndl, chk, hndl = desc
+        idle = self.ivk('input',
+            self.goto('config_input_post',
+                desc = desc, page = page, pctx = pctx))
+        actx = pctx['ctx']
+        try:
+            val = prhndl(cfg, actx, ipt)
+        except:
+            val = None
+        if val is None:
+            print('无效输入')
+            return idle
+        try:
+            valid = chk(cfg, actx, val)
+        except:
+            valid = False
+        if not valid:
+            print('无效输入')
+            breakpoint()
+            return idle
+        for key, kval in hndl(cfg, actx, val):
+            if kval is None:
+                continue
+            cfg.set(key, kval)
+        return self.pop(2, page = page, pctx = None, **pctx['octx'])
 
 if __name__ == '__main__':
     from pdb import pm

@@ -227,7 +227,7 @@ class c_picker(c_raw_picker):
             return None
         num_scale = self.cfg.get(['num scale', city, name])
         if not num_scale is None:
-            number *= num_scale
+            number *= 1 + (num_scale / 100)
         return {
             'base': price,
             'number': number,
