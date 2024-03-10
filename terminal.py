@@ -80,7 +80,7 @@ class c_terminal(c_base_terminal):
         print('欢迎使用[索思学会]戏言神谕机，且听戏言:')
         print('1: 行情预测')
         print('c: 配置车组信息')
-        print('x: 退出')
+        print('x: 返回')
         return self.ivk('input', self.push('main_post'))
 
     def stat_main_post(self, ipt = None, **ctx):
@@ -111,32 +111,39 @@ class c_terminal(c_base_terminal):
     def _rng_seq_stp(mn, mx, stp):
         return [*range(int(round(mn)), int(round(mx + stp / 2)), stp)]
 
-    def stat_market(self, **ctx):
-        cur = nowtime()
-        print(f'预测时间: {ctime(cur)}')
+    def stat_market(self, market = None, **ctx):
         rtr = self.router
         cfg = self.config
         time_min = cfg.get(['market', 'time min'], 0)
         time_max = cfg.get(['market', 'time max'], 60)
+        if market is None:
+            cur = nowtime()
+            max_cities = cfg.get(['market', 'max cities'], 3)
+            max_ranks = cfg.get(['market', 'max ranks'], 5)
+            tseq = [cur + t * 60 for t in self._rng_seq_stp(
+                time_min, time_max, self.TIME_STEP)]
+            mktt = rtr.calc_prd_market(tseq)
+            rank = rtr.sorted_prd_routes(
+                max_cities, tseq)[:max_ranks]
+            market = {
+                'time': cur,
+                'total': mktt,
+                'rank': rank,
+            }
+        else:
+            cur = market['time']
+            mktt = market['total']
+            rank = market['rank']
+        print(f'预测时间: {ctime(cur)}')
         print(f'预测范围: {time_min} 分 ~ {time_max} 分')
-        max_cities = cfg.get(['market', 'max cities'], 3)
-        max_ranks = cfg.get(['market', 'max ranks'], 5)
-        tseq = [cur + t * 60 for t in self._rng_seq_stp(
-            time_min, time_max, self.TIME_STEP)]
-        mktt = rtr.calc_prd_market(tseq)
         print(f'大盘总利润: {mktt:.2f}')
-        rank = rtr.sorted_prd_routes(
-            max_cities, tseq)[:max_ranks]
         for i, (rts, ben) in enumerate(rank):
             rt = rts[0]
             print(f'{i+1}: 平均利润:{ben:.2f} 线路:{rt.plen}站 {rt.repr_path()}')
         print('d: 详细走势')
         print('c: 配置统计信息')
-        print('x: 退出')
-        return self.ivk('input', self.push('market_post', market = {
-            'time': cur,
-            'rank': rank,
-        }))
+        print('x: 返回')
+        return self.ivk('input', self.push('market_post', market = market))
 
     def stat_market_post(self, ipt, market, **ctx):
         cmd = ipt[0]
@@ -147,7 +154,7 @@ class c_terminal(c_base_terminal):
         elif cmd == 'x':
             return self.pop(2)
         else:
-            return self.ivk('input', self.push('market_post', market = market))
+            return self.ivk('input', self.goto('market_post', market = market))
 
     def stat_market_detail(self, market, **ctx):
         cur = market['time']
@@ -156,6 +163,8 @@ class c_terminal(c_base_terminal):
         cfg = self.config
         time_min = cfg.get(['market', 'time min'], 0)
         time_max = cfg.get(['market', 'time max'], 60)
+        print(f'预测时间: {ctime(cur)}')
+        print(f'预测范围: {time_min} 分 ~ {time_max} 分')
         tab = []
         for rts, ben in rank:
             tab.append((rts[0], []))
@@ -185,7 +194,16 @@ class c_terminal(c_base_terminal):
                 if dr:
                     r += f'({dr:+7.2f})'
                 rs.append(r)
-            print(f'{i}:' + ','.join(rs))
+            print(f'{i+1}:' + ','.join(rs))
+        print('x: 返回')
+        return self.ivk('input', self.push('market_detail_post', market = market))
+
+    def stat_market_detail_post(self, ipt, market, **ctx):
+        cmd = ipt[0]
+        if cmd == 'x':
+            return self.pop(2, market = market)
+        else:
+            return self.ivk('input', self.goto('market_detail_post', market = market))
 
 if __name__ == '__main__':
     from pdb import pm
