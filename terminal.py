@@ -261,13 +261,14 @@ class c_terminal(c_base_terminal):
         if cmd == '1':
             return self.goto('config', page = 'skill')
         elif cmd == '2':
-            return self.goto('config_repu')
+            #return self.goto('config_city')
+            return self.goto('config', page = 'cities')
         elif cmd == 'x':
             return self.pop(2)
         else:
             return self.ivk('input', self.goto('config_game_post'))
 
-    def stat_config_repu(self, **ctx):
+    def stat_config_city(self, **ctx):
         city_list = list(self.router.get_city_list().keys())
         cfg = self.config
         for i, city in enumerate(city_list):
@@ -279,9 +280,9 @@ class c_terminal(c_base_terminal):
             print(f'{i+1}: 声望:{lv: 2} {blk_rpr}{city}')
         print('x: 返回')
         return self.ivk('input',
-            self.push('config_repu_post', clst = city_list))
+            self.push('config_city_post', clst = city_list))
 
-    def stat_config_repu_post(self, ipt, clst, **ctx):
+    def stat_config_city_post(self, ipt, clst, **ctx):
         cmd = ipt[0]
         if cmd.isdigit() and 1 <= int(cmd) <= len(clst):
             return self.goto('config',
@@ -290,11 +291,36 @@ class c_terminal(c_base_terminal):
             return self.pop(2)
         else:
             return self.ivk('input',
-                self.goto('config_repu_post', clst = clst))
+                self.goto('config_city_post', clst = clst))
+
+    def stat_config_itemblock(self, city, **ctx):
+        item_tab = self.router.get_city_list()[city]
+        cfg = self.config
+        for i, name in enumerate(item_tab):
+            pass
 
     PAGES = {
+        'cities': (
+            lambda self, cfg, ctx: {
+                'city_list': list(self.router.get_city_list().keys()),
+                'repu': lambda c: cfg.get(['reputation', c], 0),
+                'blck': lambda c: cfg.get(['city block', c], False),
+            },
+            '城市信息',
+            lambda cfg, ctx: [
+                (lambda city:(
+                    lambda cfg, ctx:
+                        f'声望:{ctx["repu"](city): 2} '
+                        f'{"X " if ctx["blck"](city) else ""}{city}',
+                    lambda cfg, ctx:(
+                        'city', {}
+                    ),
+                ))(city) # multiply uniq city var to argument
+                for city in ctx['city_list']
+            ],
+        ),
         'city': (
-            lambda cfg, ctx: {
+            lambda self, cfg, ctx: {
                 'repu': cfg.get(['reputation', ctx['city']], 0),
                 'blck': cfg.get(['city block', ctx['city']], False),
             },
@@ -323,6 +349,12 @@ class c_terminal(c_base_terminal):
                     (['city block', ctx['city']],
                      True if val == 'y' else False if val == 'n' else None),
                 ],
+            ), (
+                '货物锁定',
+                lambda cfg, ctx: (
+                    'config_itemblock', {
+                        'city': ctx['city'],
+                }),
             )],
         ),
         'market': [(
@@ -337,12 +369,13 @@ class c_terminal(c_base_terminal):
         if pctx is None:
             nctx, intro, cfglist = self.PAGES[page]
             if callable(nctx):
-                nctx = nctx(cfg, ctx)
+                nctx = nctx(self, cfg, ctx)
             actx = ctx.copy()
             if nctx:
                 actx.update(nctx)
             vf = lambda v: v(cfg, actx) if callable(v) else v
             intro = vf(intro)
+            cfglist = vf(cfglist)
             sels = []
             for citm in cfglist:
                 sels.append((*(vf(v) for v in citm[:2]), *citm[2:]))
@@ -363,8 +396,13 @@ class c_terminal(c_base_terminal):
         cmd = ipt[0]
         sels = pctx['sels']
         if cmd.isdigit() and 1 <= int(cmd) <= len(sels):
-            return self.goto('config_input',
-                desc = sels[int(cmd) - 1], page = page, pctx = pctx)
+            desc = sels[int(cmd) - 1][1:]
+            if isinstance(desc[0], tuple):
+                dstat, dctx = desc[1]
+                return self.goto(dstat, page = page, pctx = pctx, **dctx)
+            else:
+                return self.goto('config_input',
+                    desc = desc, page = page, pctx = pctx)
         elif cmd == 'x':
             return self.pop(2)
         else:
@@ -372,7 +410,7 @@ class c_terminal(c_base_terminal):
                 self.goto('config_post', page = page, pctx = pctx))
 
     def stat_config_input(self, desc, page, pctx, **ctx):
-        _, intro, *_ = desc
+        intro, *_ = desc
         print(intro)
         print('x: 返回')
         return self.ivk('input',
@@ -383,7 +421,7 @@ class c_terminal(c_base_terminal):
         if ipt[0] == 'x':
             return self.pop(2, page = page, pctx = pctx)
         cfg = self.config
-        _, _, prhndl, chk, hndl = desc
+        _, prhndl, chk, hndl = desc
         idle = self.ivk('input',
             self.goto('config_input_post',
                 desc = desc, page = page, pctx = pctx))
