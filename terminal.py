@@ -223,6 +223,8 @@ class c_terminal(c_base_terminal):
         print(f'利润/疲劳: {route.total / route.tired:.2f}')
         pr = {}
         for (nm, src), (dst, p, n) in route.profits.items():
+            if n == 0:
+                continue
             if not src in pr:
                 pr[src] = ([], [])
             if not dst in pr:
@@ -248,6 +250,9 @@ class c_terminal(c_base_terminal):
             return self.ivk('input',
                 self.goto('route_post', route = route, market = market))
 
+    def stat_config_input(self, desc, **ctx):
+        pass
+
     def stat_config_game(self, **ctx):
         print('1: 车组技能')
         print('2: 城市声望')
@@ -259,20 +264,33 @@ class c_terminal(c_base_terminal):
         if cmd == '1':
             return self.goto('config', page = 'skill')
         elif cmd == '2':
-            return self.goto('config_city')
+            return self.goto('config_repu')
         elif cmd == 'x':
             return self.pop(2)
         else:
             return self.ivk('input', self.goto('config_game_post'))
 
-    def stat_config_city(self, **ctx):
-        city_list = self.router.get_city_list()
+    def stat_config_repu(self, **ctx):
+        city_list = list(self.router.get_city_list().keys())
         cfg = self.config
         for i, city in enumerate(city_list):
             lv = cfg.get(['reputation', city])
             if lv is None:
                 lv = 0
             print(f'{i+1}: 声望:{lv: 2} {city}')
+        print('x: 返回')
+        return self.ivk('input',
+            self.push('config_repu_post', clst = city_list))
+
+    def stat_config_repu_post(self, clst, **ctx):
+        cmd = ipt[0]
+        if cmd.isdigit() and 1 <= int(cmd) <= len(clst):
+            return self.goto('config_city', city = clst[int(cmd) - 1])
+        elif cmd == 'x':
+            return self.pop(2)
+        else:
+            return self.ivk('input',
+                self.goto('config_repu_post', clst = city_list))
 
     PAGES = {
         'market': [(
