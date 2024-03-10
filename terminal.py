@@ -36,7 +36,7 @@ class c_state_machine:
                 stat = stack.pop()
             else:
                 stat = c
-        #print('stck', stack)
+        print('stck', stack)
         return stat, stack, ctx
 
     def run(self):
@@ -250,9 +250,6 @@ class c_terminal(c_base_terminal):
             return self.ivk('input',
                 self.goto('route_post', route = route, market = market))
 
-    def stat_config_input(self, desc, **ctx):
-        pass
-
     def stat_config_game(self, **ctx):
         print('1: 车组技能')
         print('2: 城市声望')
@@ -282,17 +279,28 @@ class c_terminal(c_base_terminal):
         return self.ivk('input',
             self.push('config_repu_post', clst = city_list))
 
-    def stat_config_repu_post(self, clst, **ctx):
+    def stat_config_repu_post(self, ipt, clst, **ctx):
         cmd = ipt[0]
         if cmd.isdigit() and 1 <= int(cmd) <= len(clst):
-            return self.goto('config_city', city = clst[int(cmd) - 1])
+            return self.goto('config',
+                page = 'city', city = clst[int(cmd) - 1])
         elif cmd == 'x':
             return self.pop(2)
         else:
             return self.ivk('input',
-                self.goto('config_repu_post', clst = city_list))
+                self.goto('config_repu_post', clst = clst))
 
     PAGES = {
+        'city': (
+            lambda cfg, ctx: {
+                'repu': cfg.get(["reputation", ctx["city"]], 0),
+            },
+            lambda cfg, ctx: f'{ctx["city"]}',
+            [(
+                lambda cfg, ctx: f'声望 {ctx["repu"]}',
+                lambda cfg, ctx: f'声望 {ctx["repu"]}',
+            )],
+        ),
         'market': [(
             '时间起点(分)',
             ['market', 'time min'],
@@ -300,7 +308,45 @@ class c_terminal(c_base_terminal):
             0, None,
         )],
     }
-    def stat_config(self, page, **ctx):
+    def stat_config(self, page, pctx = None, **ctx):
+        cfg = self.config
+        if pctx is None:
+            nctx, intro, cfglist = self.PAGES[page]
+            if callable(nctx):
+                nctx = nctx(cfg, ctx)
+            actx = ctx.copy()
+            if nctx:
+                actx.update(nctx)
+            vf = lambda v: v(cfg, actx) if callable(v) else v
+            intro = vf(intro)
+            sels = []
+            for citm in cfglist:
+                sels.append(tuple(vf(v) for v in citm))
+            pctx = {
+                'ctx': actx,
+                'intro': intro,
+                'sels': sels,
+            }
+        print(pctx['intro'])
+        for i, (title, *_) in enumerate(pctx['sels']):
+            print(f'{i+1}: {title}')
+        print('x: 返回')
+        return self.ivk('input',
+            self.push('config_post', page = page, pctx = pctx, **ctx))
+
+    def stat_config_post(self, ipt, page, pctx, **ctx):
+        cmd = ipt[0]
+        sels = pctx['sels']
+        if cmd.isdigit() and 1 <= int(cmd) <= len(sels):
+            return self.goto('config_input',
+                desc = sels[int(cmd) - 1])
+        elif cmd == 'x':
+            return self.pop(2)
+        else:
+            return self.ivk('input',
+                self.goto('config_post', page = page, pctx = pctx))
+
+    def stat_config_input(self, desc, **ctx):
         pass
 
 if __name__ == '__main__':
