@@ -57,7 +57,8 @@ class c_raw_picker:
     def _get_static(self, url):
         resp = request.urlopen(url, timeout = self.timeout)
         raw = resp.read().decode(self.enc)
-        m = re.search(r'<script src\s*=\s*\"([^\"]+?page-\w+\.js)"', raw)
+        #m = re.search(r'<script src\s*=\s*\"([^\"]+?page-\w+\.js)"', raw)
+        m = re.search(r'<script src\s*=\s*\"([^\"]+?975-\w+\.js)"', raw)
         url = parse.urljoin(self.dom_url, m.group(1))
         resp = request.urlopen(url)
         raw = resp.read().decode(self.enc)
@@ -151,12 +152,26 @@ class c_picker(c_raw_picker):
     def get_tired(self, c1, c2):
         return self.gdat['tired'].get(c1, {}).get(c2, None)
 
+    def _trim_city_in_item(self, itm, key):
+        if not key in itm:
+            return
+        cfg = self.cfg
+        src = itm[key]
+        itm[key] = {
+            c: v
+            for c, v in src.items()
+            if not cfg.get(['city block', c])
+        }
+
     def _get_item_list(self):
         tlst = {}
         for itm in self.sta_dat['data']:
             nm = itm['name']
             assert not nm in tlst
             ritm = itm.copy()
+            self._trim_city_in_item(ritm, 'buyPrices')
+            self._trim_city_in_item(ritm, 'buyLot')
+            self._trim_city_in_item(ritm, 'sellPrices')
             sls = ritm['sellPrices']
             for c, prc in sls.items():
                 if not prc is None:
@@ -210,7 +225,7 @@ class c_picker(c_raw_picker):
         number = itm.get('buyLot', {}).get(city, None)
         if price is None or number is None:
             return None
-        num_scale = self.cfg.get(['num_scale', city, name])
+        num_scale = self.cfg.get(['num scale', city, name])
         if not num_scale is None:
             number *= num_scale
         return {
