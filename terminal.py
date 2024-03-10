@@ -8,7 +8,7 @@ class c_state_machine:
     def __init__(self):
         pass
 
-    def _invoke(self, key, stat, *args, **kargs):
+    def _emit(self, key, stat, *args, **kargs):
         mn = '_'.join([key, stat])
         mtd = getattr(self, mn, None)
         if not callable(mtd):
@@ -18,17 +18,17 @@ class c_state_machine:
     def goto(self, stat, **ctx):
         return (stat,), ctx
 
-    def push(self, stat, nxt = None, **ctx):
-        cmd = ('+', stat)
-        if not nxt is None:
-            cmd = (nxt,) + cmd
-        return cmd, ctx
+    def push(self, stat, **ctx):
+        return ('+', stat), ctx
 
-    def pop(self, **ctx):
-        return ('-',), ctx
+    def pop(self, dp = 1, **ctx):
+        return ('-',) * dp, ctx
+
+    def ivk(self, stat, scmd):
+        return scmd[0] + ('+', stat), scmd[1]
 
     def _resolve(self, stat, stack, ctx):
-        cmd, ctx = self._invoke('stat', stat, **ctx)
+        cmd, ctx = self._emit('stat', stat, **ctx)
         for c in cmd:
             if c == '+':
                 stack.append(stat)
@@ -36,6 +36,7 @@ class c_state_machine:
                 stat = stack.pop()
             else:
                 stat = c
+        #print('stck', stack)
         return stat, stack, ctx
 
     def run(self):
@@ -48,7 +49,10 @@ class c_state_machine:
 class c_base_terminal(c_state_machine):
 
     def _parse_input(self):
-        return input('>> ').strip().split()
+        ipt = input('>> ').strip().split()
+        if not ipt:
+            return ['']
+        return ipt
 
     def stat_input(self, **ctx):
         return self.pop(ipt = self._parse_input(), **ctx)
@@ -77,7 +81,7 @@ class c_terminal(c_base_terminal):
         print('1: 行情预测')
         print('c: 配置车组信息')
         print('x: 退出')
-        return self.push('input', 'main_post')
+        return self.ivk('input', self.push('main_post'))
 
     def stat_main_post(self, ipt = None, **ctx):
         cmd = ipt[0]
@@ -88,7 +92,7 @@ class c_terminal(c_base_terminal):
         elif cmd == 'x':
             return self.goto(None)
         else:
-            return self.push('input', 'main_post')
+            return self.ivk('input', self.goto('main_post'))
 
     @staticmethod
     def _rng_seq(mn, mx, n):
@@ -127,7 +131,8 @@ class c_terminal(c_base_terminal):
         print('t: 修改时间')
         print('c: 配置统计信息')
         print('x: 退出')
-        return self.push('input', 'rank_post', time_rng = time_rng)
+        return self.ivk('input',
+            self.push('rank_post', time_rng = time_rng))
 
     def stat_rank_post(self, ipt, time_rng, **ctx):
         cmd = ipt[0]
@@ -136,7 +141,7 @@ class c_terminal(c_base_terminal):
         elif cmd == 'c':
             pass
         elif cmd == 'x':
-            pass
+            return self.pop(2)
         else:
             pass
 
