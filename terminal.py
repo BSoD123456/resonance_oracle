@@ -252,7 +252,7 @@ class c_terminal(c_base_terminal):
 
     def stat_config_game(self, **ctx):
         print('1: 车组技能')
-        print('2: 城市声望')
+        print('2: 城市信息')
         print('x: 返回')
         return self.ivk('input', self.push('config_game_post'))
 
@@ -274,7 +274,9 @@ class c_terminal(c_base_terminal):
             lv = cfg.get(['reputation', city])
             if lv is None:
                 lv = 0
-            print(f'{i+1}: 声望:{lv: 2} {city}')
+            blk = cfg.get(['city block', city])
+            blk_rpr = 'X ' if blk else ''
+            print(f'{i+1}: 声望:{lv: 2} {blk_rpr}{city}')
         print('x: 返回')
         return self.ivk('input',
             self.push('config_repu_post', clst = city_list))
@@ -295,10 +297,11 @@ class c_terminal(c_base_terminal):
             lambda cfg, ctx: {
                 'repu': cfg.get(['reputation', ctx['city']], 0),
                 'nscl': cfg.get(['num scale', ctx['city']], 0),
+                'blck': cfg.get(['city block', ctx['city']], False),
             },
             lambda cfg, ctx: f'{ctx["city"]}',
             [(
-                lambda cfg, ctx: f'声望 {ctx["repu"]}',
+                lambda cfg, ctx: f'声望: {ctx["repu"]}',
                 lambda cfg, ctx:
                     f'城市: {ctx["city"]}\n'
                     f'声望: {ctx["repu"]}\n'
@@ -309,6 +312,18 @@ class c_terminal(c_base_terminal):
                 lambda cfg, ctx, val: [
                     (['reputation', ctx['city']], val),
                     (['num scale', ctx['city']], val * 10),
+                ],
+            ), (
+                lambda cfg, ctx: f'忽略: {ctx["blck"]}',
+                lambda cfg, ctx:
+                    f'城市: {ctx["city"]}\n'
+                    f'忽略: {ctx["blck"]}\n'
+                    '是否忽略该城市(y/n):',
+                lambda cfg, ctx, val: val[0].lower(),
+                lambda cfg, ctx, val: val in ('y', 'n'),
+                lambda cfg, ctx, val: [
+                    (['city block', ctx['city']],
+                     True if val == 'y' else False if val == 'n' else None),
                 ],
             )],
         ),
@@ -388,7 +403,6 @@ class c_terminal(c_base_terminal):
             valid = False
         if not valid:
             print('无效输入')
-            breakpoint()
             return idle
         for key, kval in hndl(cfg, actx, val):
             if kval is None:
