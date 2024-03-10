@@ -86,7 +86,7 @@ class c_terminal(c_base_terminal):
     def stat_main_post(self, ipt = None, **ctx):
         cmd = ipt[0]
         if cmd == '1':
-            return self.goto('rank', time_rng = (0, 60))
+            return self.goto('market')
         elif cmd == 'c':
             return self.goto('config')
         elif cmd == 'x':
@@ -111,15 +111,18 @@ class c_terminal(c_base_terminal):
     def _rng_seq_stp(mn, mx, stp):
         return [*range(int(round(mn)), int(round(mx + stp / 2)), stp)]
 
-    def stat_rank(self, time_rng, **ctx):
+    def stat_market(self, **ctx):
         cur = nowtime()
         print(f'预测时间: {ctime(cur)}')
-        print(f'预测范围: {time_rng[0]} 分 ~ {time_rng[1]} 分')
         rtr = self.router
-        max_cities = self.config.get(['terminal', 'max cities'], 3)
-        max_ranks = self.config.get(['terminal', 'max ranks'], 5)
+        cfg = self.config
+        time_min = cfg.get(['market', 'time min'], 0)
+        time_max = cfg.get(['market', 'time max'], 60)
+        print(f'预测范围: {time_min} 分 ~ {time_max} 分')
+        max_cities = cfg.get(['market', 'max cities'], 3)
+        max_ranks = cfg.get(['market', 'max ranks'], 5)
         tseq = [cur + t * 60 for t in self._rng_seq_stp(
-            *time_rng, self.TIME_STEP)]
+            time_min, time_max, self.TIME_STEP)]
         mktt = rtr.calc_prd_market(tseq)
         print(f'大盘总利润: {mktt:.2f}')
         rank = rtr.sorted_prd_routes(
@@ -128,22 +131,20 @@ class c_terminal(c_base_terminal):
             rt = rts[0]
             print(f'{i+1}: 平均利润:{ben:.2f} 线路:{rt.plen}站 {rt.repr_path()}')
         print('d: 详细走势')
-        print('t: 修改时间')
         print('c: 配置统计信息')
         print('x: 退出')
-        return self.ivk('input',
-            self.push('rank_post', time_rng = time_rng))
+        return self.ivk('input', self.push('market_post', rank = rank))
 
-    def stat_rank_post(self, ipt, time_rng, **ctx):
+    def stat_market_post(self, ipt, rank, **ctx):
         cmd = ipt[0]
         if cmd == 'd':
-            pass
+            return self.goto('market_detail', rank = rank)
         elif cmd == 'c':
-            pass
+            return self.goto('config', page = 'market')
         elif cmd == 'x':
             return self.pop(2)
         else:
-            pass
+            return self.ivk('input', self.push('market_post', rank = rank))
 
 if __name__ == '__main__':
     from pdb import pm
