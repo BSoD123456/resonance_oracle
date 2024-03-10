@@ -133,18 +133,59 @@ class c_terminal(c_base_terminal):
         print('d: 详细走势')
         print('c: 配置统计信息')
         print('x: 退出')
-        return self.ivk('input', self.push('market_post', rank = rank))
+        return self.ivk('input', self.push('market_post', market = {
+            'time': cur,
+            'rank': rank,
+        }))
 
-    def stat_market_post(self, ipt, rank, **ctx):
+    def stat_market_post(self, ipt, market, **ctx):
         cmd = ipt[0]
         if cmd == 'd':
-            return self.goto('market_detail', rank = rank)
+            return self.goto('market_detail', market = market)
         elif cmd == 'c':
             return self.goto('config', page = 'market')
         elif cmd == 'x':
             return self.pop(2)
         else:
-            return self.ivk('input', self.push('market_post', rank = rank))
+            return self.ivk('input', self.push('market_post', market = market))
+
+    def stat_market_detail(self, market, **ctx):
+        cur = market['time']
+        rank = market['rank']
+        rtr = self.router
+        cfg = self.config
+        time_min = cfg.get(['market', 'time min'], 0)
+        time_max = cfg.get(['market', 'time max'], 60)
+        tab = []
+        for rts, ben in rank:
+            tab.append((rts[0], []))
+        tseq = self._rng_seq(time_min, time_max, self.TIME_COLS)
+        for time in (cur + t * 60 for t in tseq):
+            for rt, dat in tab:
+                nrt = rtr.recalc_profits(rt, time)
+                dat.append([nrt, nrt.benefit, 0, 0])
+        rows = len(tab)
+        cols = len(tseq)
+        for c in range(cols):
+            bens = [tab[r][1][c][1] for r in range(rows)]
+            max_ben = max(bens)
+            for r in range(rows):
+                itm = tab[r][1][c]
+                itm[2] = itm[1] - max_ben
+                if c > 0:
+                    itm[3] = itm[1] - tab[r][1][c - 1][1]
+        print(f'  {str(tseq[0])+"m": ^10},' + ','.join(f'  {str(t)+"m": ^17}' for t in tseq[1:]))
+        for i, (_, row) in enumerate(tab):
+            rs = []
+            for rt, ben, dc, dr in row:
+                if dc:
+                    r = f'{dc:+10.2f}'
+                else:
+                    r = f'{ben: 10.2f}'
+                if dr:
+                    r += f'({dr:+7.2f})'
+                rs.append(r)
+            print(f'{i}:' + ','.join(rs))
 
 if __name__ == '__main__':
     from pdb import pm

@@ -21,6 +21,11 @@ class c_route:
         self.total = total_profit
         self.benefit = total_profit / self.tired
 
+    def new_profits(self, profits, total_profit = None):
+        return c_route(
+            self.path, self.grpkey, self.tlst,
+            profits, self.tired, total_profit)
+
     def repr_path(self):
         return ' -> '.join((*self.path, self.path[0]))
 
@@ -126,6 +131,11 @@ class c_router:
                     total_tired = tired, total_profit = total)
                 min_rts.append(route)
             yield min_rts, min_rts[0].benefit, grpkey
+
+    def recalc_profits(self, route, time):
+        city_list = self.prd.get_picker().get_city_list()
+        profits, total = self._calc_profit(city_list, route.path, time)
+        return route.new_profits(profits, total)
 
     def sorted_routes(self, mxn, time = None):
         return [rts for rts, _, _ in sorted(
