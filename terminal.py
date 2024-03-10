@@ -296,7 +296,6 @@ class c_terminal(c_base_terminal):
         'city': (
             lambda cfg, ctx: {
                 'repu': cfg.get(['reputation', ctx['city']], 0),
-                'nscl': cfg.get(['num scale', ctx['city']], 0),
                 'blck': cfg.get(['city block', ctx['city']], False),
             },
             lambda cfg, ctx: f'{ctx["city"]}',
@@ -305,19 +304,18 @@ class c_terminal(c_base_terminal):
                 lambda cfg, ctx:
                     f'城市: {ctx["city"]}\n'
                     f'声望: {ctx["repu"]}\n'
-                    f'进货加成: {ctx["nscl"]}\n'
+                    f'进货加成: +{ctx["repu"] * 10}%\n'
                     '输入声望等级:',
                 lambda cfg, ctx, val: int(val[0]),
                 lambda cfg, ctx, val: val >= 0,
                 lambda cfg, ctx, val: [
                     (['reputation', ctx['city']], val),
-                    (['num scale', ctx['city']], val * 10),
                 ],
             ), (
                 lambda cfg, ctx: f'忽略: {ctx["blck"]}',
                 lambda cfg, ctx:
                     f'城市: {ctx["city"]}\n'
-                    f'忽略: {ctx["blck"]}\n'
+                    f'忽略: {"yes" if ctx["blck"] else "no"}\n'
                     '是否忽略该城市(y/n):',
                 lambda cfg, ctx, val: val[0].lower(),
                 lambda cfg, ctx, val: val in ('y', 'n'),

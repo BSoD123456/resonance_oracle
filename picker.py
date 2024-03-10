@@ -152,26 +152,12 @@ class c_picker(c_raw_picker):
     def get_tired(self, c1, c2):
         return self.gdat['tired'].get(c1, {}).get(c2, None)
 
-    def _trim_city_in_item(self, itm, key):
-        if not key in itm:
-            return
-        cfg = self.cfg
-        src = itm[key]
-        itm[key] = {
-            c: v
-            for c, v in src.items()
-            if not cfg.get(['city block', c])
-        }
-
     def _get_item_list(self):
         tlst = {}
         for itm in self.sta_dat['data']:
             nm = itm['name']
             assert not nm in tlst
             ritm = itm.copy()
-            self._trim_city_in_item(ritm, 'buyPrices')
-            self._trim_city_in_item(ritm, 'buyLot')
-            self._trim_city_in_item(ritm, 'sellPrices')
             sls = ritm['sellPrices']
             for c, prc in sls.items():
                 if not prc is None:
@@ -214,6 +200,17 @@ class c_picker(c_raw_picker):
     def get_city_list(self):
         return self.gdat['city']
 
+    def _calc_num_scale(self, name, city):
+        cfg = self.cfg
+        if cfg.get(['city block', city]):
+            return 0
+        if cfg.get(['item block', city, name]):
+            return 0
+        repu = cfg.get(['reputation', city])
+        if not repu:
+            return None
+        return 1 + repu / 100
+
     def _get_sta_buy(self, name, city):
         tlst = self.gdat['item']
         if not name in tlst:
@@ -225,9 +222,9 @@ class c_picker(c_raw_picker):
         number = itm.get('buyLot', {}).get(city, None)
         if price is None or number is None:
             return None
-        num_scale = self.cfg.get(['num scale', city, name])
+        num_scale = self._calc_num_scale(name, city)
         if not num_scale is None:
-            number *= 1 + (num_scale / 100)
+            number *= num_scale
         return {
             'base': price,
             'number': number,
