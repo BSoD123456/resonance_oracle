@@ -204,7 +204,11 @@ class c_terminal(c_base_terminal):
 
     def stat_market_detail_post(self, ipt, market, **ctx):
         cmd = ipt[0]
-        if cmd == 'x':
+        rank = market['rank']
+        if cmd.isdigit() and 1 <= int(cmd) <= len(rank):
+            rt = rank[int(cmd) - 1][0][0]
+            return self.goto('route', route = rt, market = market)
+        elif cmd == 'x':
             return self.pop(2, market = market)
         else:
             return self.ivk('input',
@@ -217,6 +221,21 @@ class c_terminal(c_base_terminal):
             [str(i) for i in route.tlst]))
         print(f'利润: {route.total:.2f}')
         print(f'利润/疲劳: {route.total / route.tired:.2f}')
+        pr = {}
+        for (nm, src), (dst, p, n) in route.profits.items():
+            if not src in pr:
+                pr[src] = ([], [])
+            if not dst in pr:
+                pr[dst] = ([], [])
+            pr[src][0].append(nm)
+            pr[dst][1].append((nm, p))
+        for c in route.path:
+            rs = []
+            for nm in pr[c][0]:
+                rs.append(f'{nm}(入)')
+            for nm, p in pr[c][1]:
+                rs.append(f'{nm}(出{p:+.2f})')
+            print(f'{c}:', ', '.join(rs))
         print('x: 返回')
         return self.ivk('input',
             self.push('route_post', route = route, market = market))
