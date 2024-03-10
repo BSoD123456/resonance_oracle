@@ -88,7 +88,7 @@ class c_terminal(c_base_terminal):
         if cmd == '1':
             return self.goto('market')
         elif cmd == 'c':
-            return self.goto('config')
+            return self.goto('config_game')
         elif cmd == 'x':
             return self.goto(None)
         else:
@@ -248,6 +248,40 @@ class c_terminal(c_base_terminal):
             return self.ivk('input',
                 self.goto('route_post', route = route, market = market))
 
+    def stat_config_game(self, **ctx):
+        print('1: 车组技能')
+        print('2: 城市声望')
+        print('x: 返回')
+        return self.ivk('input', self.push('config_game_post'))
+
+    def stat_config_game_post(self, ipt, **ctx):
+        cmd = ipt[0]
+        if cmd == '1':
+            return self.goto('config', page = 'skill')
+        elif cmd == '2':
+            return self.goto('config_city')
+        elif cmd == 'x':
+            return self.pop(2)
+        else:
+            return self.ivk('input', self.goto('config_game_post'))
+
+    def stat_config_city(self, **ctx):
+        city_list = self.router.get_city_list()
+        cfg = self.config
+        for i, city in enumerate(city_list):
+            lv = cfg.get(['reputation', city])
+            if lv is None:
+                lv = 0
+            print(f'{i+1}: 声望:{lv: 2} {city}')
+
+    PAGES = {
+        'market': [(
+            '时间起点(分)',
+            ['market', 'time min'],
+            lambda s: int(s),
+            0, None,
+        )],
+    }
     def stat_config(self, page, **ctx):
         pass
 

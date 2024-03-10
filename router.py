@@ -101,6 +101,9 @@ class c_router:
             profits, total = self._calc_profit(city_list, cgrp, time)
             yield cgrp, grpkey, total, profits
 
+    def get_city_list(self):
+        return self.prd.get_picker().get_city_list()
+
     def calc_market(self, time = None):
         city_list = self.prd.get_picker().get_city_list()
         cgrp = tuple(city_list.keys())
