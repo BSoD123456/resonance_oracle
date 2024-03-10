@@ -62,7 +62,7 @@ from router import make_router
 class c_terminal(c_base_terminal):
 
     TIME_COLS = 4
-    TIME_STEP = 20
+    TIME_STEP = 15
 
     def stat_init(self, **ctx):
         self.router = make_router()
@@ -139,7 +139,7 @@ class c_terminal(c_base_terminal):
         print(f'大盘总利润: {mktt:.2f}')
         for i, (rts, ben) in enumerate(rank):
             rt = rts[0]
-            print(f'{i+1}: 平均利润:{ben:.2f} 线路:{rt.plen}站 {rt.repr_path()}')
+            print(f'{i+1}: 利润/疲劳: {ben:.2f} 线路:{rt.plen}站 {rt.repr_path()}')
         print('d: 详细走势')
         print('c: 配置统计信息')
         print('x: 返回')
@@ -147,7 +147,11 @@ class c_terminal(c_base_terminal):
 
     def stat_market_post(self, ipt, market, **ctx):
         cmd = ipt[0]
-        if cmd == 'd':
+        rank = market['rank']
+        if cmd.isdigit() and 1 <= int(cmd) <= len(rank):
+            rt = rank[int(cmd) - 1][0][0]
+            return self.goto('route', route = rt, market = market)
+        elif cmd == 'd':
             return self.goto('market_detail', market = market)
         elif cmd == 'c':
             return self.goto('config', page = 'market')
@@ -203,7 +207,30 @@ class c_terminal(c_base_terminal):
         if cmd == 'x':
             return self.pop(2, market = market)
         else:
-            return self.ivk('input', self.goto('market_detail_post', market = market))
+            return self.ivk('input',
+                self.goto('market_detail_post', market = market))
+
+    def stat_route(self, route, market, **config):
+        print('站数:', route.plen)
+        print('路线:', route.repr_path())
+        print(f'疲劳: {route.tired} = ' + ' + '.join(
+            [str(i) for i in route.tlst]))
+        print(f'利润: {route.total:.2f}')
+        print(f'利润/疲劳: {route.total / route.tired:.2f}')
+        print('x: 返回')
+        return self.ivk('input',
+            self.push('route_post', route = route, market = market))
+
+    def stat_route_post(self, ipt, route, market, **ctx):
+        cmd = ipt[0]
+        if cmd == 'x':
+            return self.pop(2, market = market)
+        else:
+            return self.ivk('input',
+                self.goto('route_post', route = route, market = market))
+
+    def stat_config(self, page, **ctx):
+        pass
 
 if __name__ == '__main__':
     from pdb import pm

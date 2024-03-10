@@ -4,9 +4,9 @@
 import time
 
 DUMB_CFG = {
-    'period': 20,
-    'threshold': 20, #60,
-    'step': 2,
+    'period': 15,
+    'threshold': 15,
+    'step': 1,
     'range': (80, 120),
 }
 
