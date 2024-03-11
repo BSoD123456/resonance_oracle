@@ -8,7 +8,8 @@ from urllib import request, parse, error as uerr
 from socket import error as serr
 
 DOM_URL = 'https://www.resonance-columba.com'
-DAT_URL = '/api/get-prices'
+#DAT_URL = '/api/get-prices'
+DAT_URL = '/api/get-prices-v2'
 
 TIRED_TAB = {
     'i': {
@@ -156,7 +157,7 @@ class c_picker(c_raw_picker):
         tlst = {}
         for itm in self.sta_dat['data']:
             nm = itm['name']
-            assert not nm in tlst
+            #assert not nm in tlst # sometimes it's duplicated
             ritm = itm.copy()
             sls = ritm['sellPrices']
             for c, prc in sls.items():
