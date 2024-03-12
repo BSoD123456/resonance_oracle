@@ -334,7 +334,7 @@ class c_terminal(c_base_terminal):
             '城市相关信息',
             [
                 (lambda city:(
-                    f"{pctx['cfunc'](city)['blck']}{city}", 'city', {
+                    f"{pctx['cfunc'](city)['blck']}{city} {pctx['cfunc'](city)['ascale']:+.0f}%", 'city', {
                         'city': city,
                     },
                 ))(city) # multiply uniq city var to argument
@@ -344,10 +344,14 @@ class c_terminal(c_base_terminal):
             'clst': list(self.router.get_city_list().keys()),
             'cfunc': lambda c: {
                 'blck': 'X ' if cfg.get(['city block', c], False) else '',
+                'ascale': (
+                    cfg.get(['reputation', c], 0) * 10
+                    + cfg.get(['city num scale', c], 0)),
             }
         }),
         'city': lambda self, ctx, imp, cfg: (lambda pctx:(
-            f"城市: {imp['city']}",
+            f"城市: {imp['city']}\n"
+            f"货物总加成: {pctx['repu'] * 10 + pctx['nscale']:+.0f}% = {pctx['repu'] * 10:+.0f}%(声望){pctx['nscale']:+.0f}%(额外)",
             [
                 (f"封锁: {pctx['blck']}", ':yes_or_no', {
                     'ckey': ['city block', imp['city']],
@@ -357,10 +361,15 @@ class c_terminal(c_base_terminal):
                     'ckey': ['reputation', imp['city']],
                     'intro': f"",
                 }),
+                (f"额外进货加成: {pctx['nscale']:+.0f}%", ':int', {
+                    'ckey': ['city num scale', imp['city']],
+                    'intro': f"",
+                }),
             ],
         ))({
-            'repu': cfg.get(['reputation', imp['city']], 0),
             'blck': 'Yes' if cfg.get(['city block', imp['city']], False) else 'No',
+            'repu': cfg.get(['reputation', imp['city']], 0),
+            'nscale': cfg.get(['city num scale', imp['city']], 0),
         }),
     }
     def stat_config(self, ctx, page, **imp):
@@ -399,6 +408,10 @@ class c_terminal(c_base_terminal):
                 return self.push('input')
 
     CFGIPTPAGES = {
+        'int': (
+            lambda val: int(val[0]),
+            None,
+        ),
         'pos_int': (
             lambda val: int(val[0]),
             lambda val: val >= 0,
