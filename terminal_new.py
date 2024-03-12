@@ -42,6 +42,7 @@ class c_state_machine:
 
     def ctxrst(self, ctx):
         ctx.clear()
+        ctx['__ret__'] = {}
 
     def ctxset(self, ctx, **dst):
         ctx.update(dst)
@@ -138,7 +139,7 @@ class c_terminal(c_base_terminal):
                 return self.push('market')
             elif cmd == 'c':
                 self.phrst(ctx)
-                return self.push('config_game')
+                return self.push('config', page = 'game')
             elif cmd == 'x':
                 return self.pop()
             else:
@@ -310,54 +311,92 @@ class c_terminal(c_base_terminal):
             else:
                 return self.push('input')
 
-    def stat_config_game(self, **ctx):
-        print('1: 车组技能')
-        print('2: 城市信息')
-        print('x: 返回')
-        return self.ivk('input', self.push('config_game_post'))
-
-    def stat_config_game_post(self, ipt, **ctx):
-        cmd = ipt[0]
-        if cmd == '1':
-            return self.goto('config', page = 'skill')
-        elif cmd == '2':
-            #return self.goto('config_city')
-            return self.goto('config', page = 'cities')
-        elif cmd == 'x':
-            return self.pop(2)
-        else:
-            return self.ivk('input', self.goto('config_game_post'))
-
-    def stat_config_city(self, **ctx):
-        city_list = list(self.router.get_city_list().keys())
-        cfg = self.config
-        for i, city in enumerate(city_list):
-            lv = cfg.get(['reputation', city])
-            if lv is None:
-                lv = 0
-            blk = cfg.get(['city block', city])
-            blk_rpr = 'X ' if blk else ''
-            print(f'{i+1}: 声望:{lv: 2} {blk_rpr}{city}')
-        print('x: 返回')
-        return self.ivk('input',
-            self.push('config_city_post', clst = city_list))
-
-    def stat_config_city_post(self, ipt, clst, **ctx):
-        cmd = ipt[0]
-        if cmd.isdigit() and 1 <= int(cmd) <= len(clst):
-            return self.goto('config',
-                page = 'city', city = clst[int(cmd) - 1])
-        elif cmd == 'x':
-            return self.pop(2)
-        else:
-            return self.ivk('input',
-                self.goto('config_city_post', clst = clst))
-
-    def stat_config_itemblock(self, city, **ctx):
-        item_tab = self.router.get_city_list()[city]
-        cfg = self.config
-        for i, name in enumerate(item_tab):
-            pass
+    CFGPAGES = {
+        'game': (
+            '车组相关信息',
+            [
+                ('车组技能', 'skill'),
+                ('城市信息', 'cities'),
+            ],
+        ),
+        'skill': lambda self, ctx, imp, cfg: (lambda pctx:(
+            '车组成员总技能加成',
+            [
+                (f"疲劳轻减: {pctx['tired']}", ':pos_int', {
+                    'key': ['skill', 'tired'],
+                    'intro': f"当前疲劳轻减: {pctx['tired']}",
+                }),
+            ],
+        ))({
+            'tired': cfg.get(['skill', 'tired'], 1),
+        }),
+        'cities': lambda self, ctx, imp, cfg: (lambda pctx:(
+            '城市相关信息',
+            [
+                (lambda city:(
+                    f"{pctx['cfunc'](city)['blck']}{city}", 'city', {
+                        'city': city,
+                    },
+                ))(city) # multiply uniq city var to argument
+                for city in pctx['clst']
+            ],
+        ))({
+            'clst': list(self.router.get_city_list().keys()),
+            'cfunc': lambda c: {
+                'blck': 'X ' if cfg.get(['city block', c], False) else '',
+            }
+        }),
+        'city': lambda self, ctx, imp, cfg: (lambda pctx:(
+            f"城市: {imp['city']}",
+            [
+                (f"封锁: {pctx['blck']}", ':yes_or_no', {
+                    'key': ['city block', imp['city']],
+                    'intro': f"",
+                }),
+                (f"声望等级: {pctx['repu']}", ':pos_int', {
+                    'key': ['reputation', imp['city']],
+                    'intro': f"",
+                }),
+            ],
+        ))({
+            'repu': cfg.get(['reputation', imp['city']], 0),
+            'blck': 'Yes' if cfg.get(['city block', imp['city']], False) else 'No',
+        }),
+    }
+    def stat_config(self, ctx, page, **imp):
+        if self.phsw(ctx):
+            cfg = self.config
+            cpg = self.CFGPAGES[page]
+            if callable(cpg):
+                cpg = cpg(self, ctx, imp, cfg)
+            self.ctxset(ctx, cpg = cpg)
+            intro, cfg_list = cpg
+            print(intro)
+            for i, (ttl, *_) in enumerate(cfg_list):
+                print(f'{i+1}: {ttl}')
+            print('x: 返回')
+            self.phnxt(ctx)
+            return self.push('input')
+        elif self.phsw(ctx):
+            ipt, = self.ctxret(ctx, 'ipt')
+            cmd = ipt[0]
+            cpg, = self.ctxget(ctx, 'cpg')
+            _, cfg_list = cpg
+            if cmd.isdigit() and 1 <= int(cmd) <= len(cfg_list):
+                _, dst, *ks = cfg_list[int(cmd)-1]
+                if ks:
+                    k = ks[0]
+                else:
+                    k = {}
+                self.ctxrst(ctx)
+                if dst.startswith(':'):
+                    return self.push('config_input', page = dst[1:], **k)
+                else:
+                    return self.push('config', page = dst, **k)
+            elif cmd == 'x':
+                return self.pop()
+            else:
+                return self.push('input')
 
     PAGES = {
         'cities': (
@@ -424,87 +463,6 @@ class c_terminal(c_base_terminal):
             0, None,
         )],
     }
-    def stat_config(self, page, pctx = None, **ctx):
-        cfg = self.config
-        if pctx is None:
-            nctx, intro, cfglist = self.PAGES[page]
-            if callable(nctx):
-                nctx = nctx(self, cfg, ctx)
-            actx = ctx.copy()
-            if nctx:
-                actx.update(nctx)
-            vf = lambda v: v(cfg, actx) if callable(v) else v
-            intro = vf(intro)
-            cfglist = vf(cfglist)
-            sels = []
-            for citm in cfglist:
-                sels.append((*(vf(v) for v in citm[:2]), *citm[2:]))
-            pctx = {
-                'ctx': actx,
-                'intro': intro,
-                'sels': sels,
-                'octx': ctx,
-            }
-        print(pctx['intro'])
-        for i, (title, *_) in enumerate(pctx['sels']):
-            print(f'{i+1}: {title}')
-        print('x: 返回')
-        return self.ivk('input',
-            self.push('config_post', page = page, pctx = pctx))
-
-    def stat_config_post(self, ipt, page, pctx, **ctx):
-        cmd = ipt[0]
-        sels = pctx['sels']
-        if cmd.isdigit() and 1 <= int(cmd) <= len(sels):
-            desc = sels[int(cmd) - 1][1:]
-            if isinstance(desc[0], tuple):
-                dpage, dctx = desc[1]
-                return self.goto(dstat, page = page, pctx = pctx, **dctx)
-            else:
-                return self.goto('config_input',
-                    desc = desc, page = page, pctx = pctx)
-        elif cmd == 'x':
-            return self.pop(2)
-        else:
-            return self.ivk('input',
-                self.goto('config_post', page = page, pctx = pctx))
-
-    def stat_config_input(self, desc, page, pctx, **ctx):
-        intro, *_ = desc
-        print(intro)
-        print('x: 返回')
-        return self.ivk('input',
-            self.push('config_input_post',
-                desc = desc, page = page, pctx = pctx))
-
-    def stat_config_input_post(self, ipt, desc, page, pctx, **ctx):
-        if ipt[0] == 'x':
-            return self.pop(2, page = page, pctx = pctx)
-        cfg = self.config
-        _, prhndl, chk, hndl = desc
-        idle = self.ivk('input',
-            self.goto('config_input_post',
-                desc = desc, page = page, pctx = pctx))
-        actx = pctx['ctx']
-        try:
-            val = prhndl(cfg, actx, ipt)
-        except:
-            val = None
-        if val is None:
-            print('无效输入')
-            return idle
-        try:
-            valid = chk(cfg, actx, val)
-        except:
-            valid = False
-        if not valid:
-            print('无效输入')
-            return idle
-        for key, kval in hndl(cfg, actx, val):
-            if kval is None:
-                continue
-            cfg.set(key, kval)
-        return self.pop(2, page = page, pctx = None, **pctx['octx'])
 
 if __name__ == '__main__':
     from pdb import pm
