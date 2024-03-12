@@ -334,7 +334,7 @@ class c_terminal(c_base_terminal):
             '城市相关信息',
             [
                 (lambda city:(
-                    f"{pctx['cfunc'](city)['blck']}{city} {pctx['cfunc'](city)['ascale']:+.0f}%", 'city', {
+                    f"{pctx['func'](city)['blck']}{city} {pctx['func'](city)['ascale']:+.0f}%", 'city', {
                         'city': city,
                     },
                 ))(city) # multiply uniq city var to argument
@@ -342,8 +342,8 @@ class c_terminal(c_base_terminal):
             ],
         ))({
             'clst': list(self.router.get_city_list().keys()),
-            'cfunc': lambda c: {
-                'blck': 'X ' if cfg.get(['city block', c], False) else '',
+            'func': lambda c: {
+                'blck': '(X) ' if cfg.get(['city block', c], False) else '',
                 'ascale': (
                     cfg.get(['reputation', c], 0) * 10
                     + cfg.get(['city num scale', c], 0)),
@@ -365,11 +365,32 @@ class c_terminal(c_base_terminal):
                     'ckey': ['city num scale', imp['city']],
                     'intro': f"",
                 }),
+                ('详细货物进货设置', 'items', {
+                    'city': imp['city'],
+                }),
             ],
         ))({
             'blck': 'Yes' if cfg.get(['city block', imp['city']], False) else 'No',
             'repu': cfg.get(['reputation', imp['city']], 0),
             'nscale': cfg.get(['city num scale', imp['city']], 0),
+        }),
+        'items': lambda self, ctx, imp, cfg: (lambda pctx:(
+            f"城市货物进货设置: {imp['city']}",
+            [
+                (lambda tname:(
+                    f"{pctx['func'](tname)['blck']}{tname} {pctx['func'](tname)['ascale']:+.0f}%", 'item', {
+                        'city': imp['city'],
+                        'item': tname,
+                    },
+                ))(tname) # multiply uniq city var to argument
+                for tname in pctx['tlst']
+            ],
+        ))({
+            'tlst': self.router.get_city_list()[imp['city']],
+            'func': lambda t: {
+                'blck': '(X) ' if cfg.get(['item block', imp['city'], t], False) else '',
+                'ascale': 0,
+            }
         }),
     }
     def stat_config(self, ctx, page, **imp):
