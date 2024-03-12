@@ -311,6 +311,27 @@ class c_terminal(c_base_terminal):
             else:
                 return self.push('input')
 
+    CFGKEYS = {
+        'sk/tr': (['skill', 'tired'], 1),
+        'blk/c': lambda c: (['city block', c], False),
+        'repu': lambda c: (['reputation', c], 0),
+        'sc/c': lambda c: (['city num scale', c], 0),
+        'blk/t': lambda c, t: (['item block', c, t], False),
+        'sc/t': lambda c, t: (['item num scale', c, t], 0),
+    }
+
+    def _cfgprs(self, key, args):
+        ck = self.CFGKEYS[key]
+        if args:
+            ck = ck(*args)
+        return ck
+
+    def _cfgk(self, key, *args):
+        return self._cfgprs(key, args)[0]
+
+    def _cfgv(self, key, *args):
+        return self.config.get(*self._cfgprs(key, args))
+
     CFGPAGES = {
         'game': (
             '车组相关信息',
@@ -319,18 +340,18 @@ class c_terminal(c_base_terminal):
                 ('城市信息', 'cities'),
             ],
         ),
-        'skill': lambda self, ctx, imp, cfg: (lambda pctx:(
+        'skill': lambda self, ctx, imp: (lambda pctx:(
             '车组成员总技能加成',
             [
                 (f"疲劳轻减: {pctx['tired']}", ':pos_int', {
-                    'ckey': ['skill', 'tired'],
+                    'ckey': self._cfgk('sk/tr'),
                     'intro': f"当前疲劳轻减: {pctx['tired']}",
                 }),
             ],
         ))({
-            'tired': cfg.get(['skill', 'tired'], 1),
+            'tired': self._cfgv('sk/tr'),
         }),
-        'cities': lambda self, ctx, imp, cfg: (lambda pctx:(
+        'cities': lambda self, ctx, imp: (lambda pctx:(
             '城市相关信息',
             [
                 (lambda city:(
@@ -343,26 +364,26 @@ class c_terminal(c_base_terminal):
         ))({
             'clst': list(self.router.get_city_list().keys()),
             'func': lambda c: {
-                'blck': '(X) ' if cfg.get(['city block', c], False) else '',
+                'blck': '(X) ' if self._cfgv('blk/c', c) else '',
                 'ascale': (
-                    cfg.get(['reputation', c], 0) * 10
-                    + cfg.get(['city num scale', c], 0)),
+                    self._cfgv('repu', c) * 10
+                    + self._cfgv('sc/c', c)),
             }
         }),
-        'city': lambda self, ctx, imp, cfg: (lambda pctx:(
+        'city': lambda self, ctx, imp: (lambda pctx:(
             f"城市: {imp['city']}\n"
             f"货物总加成: {pctx['repu'] * 10 + pctx['nscale']:+.0f}% = {pctx['repu'] * 10:+.0f}%(声望){pctx['nscale']:+.0f}%(额外)",
             [
                 (f"封锁: {pctx['blck']}", ':yes_or_no', {
-                    'ckey': ['city block', imp['city']],
+                    'ckey': self._cfgk('blk/c', imp['city']),
                     'intro': f"",
                 }),
                 (f"声望等级: {pctx['repu']}", ':pos_int', {
-                    'ckey': ['reputation', imp['city']],
+                    'ckey': self._cfgk('repu', imp['city']),
                     'intro': f"",
                 }),
                 (f"额外进货加成: {pctx['nscale']:+.0f}%", ':int', {
-                    'ckey': ['city num scale', imp['city']],
+                    'ckey': self._cfgk('sc/c', imp['city']),
                     'intro': f"",
                 }),
                 ('详细货物进货设置', 'items', {
@@ -370,11 +391,11 @@ class c_terminal(c_base_terminal):
                 }),
             ],
         ))({
-            'blck': 'Yes' if cfg.get(['city block', imp['city']], False) else 'No',
-            'repu': cfg.get(['reputation', imp['city']], 0),
-            'nscale': cfg.get(['city num scale', imp['city']], 0),
+            'blck': 'Yes' if self._cfgv('blk/c', imp['city']) else 'No',
+            'repu': self._cfgv('repu', imp['city']),
+            'nscale': self._cfgv('sc/c', imp['city']),
         }),
-        'items': lambda self, ctx, imp, cfg: (lambda pctx:(
+        'items': lambda self, ctx, imp: (lambda pctx:(
             f"城市货物进货设置: {imp['city']}",
             [
                 (lambda tname:(
@@ -388,8 +409,8 @@ class c_terminal(c_base_terminal):
         ))({
             'tlst': self.router.get_city_list()[imp['city']],
             'func': lambda t: {
-                'blck': '(X) ' if cfg.get(['item block', imp['city'], t], False) else '',
-                'ascale': 0,
+                'blck': '(X) ' if self._cfgv('blk/t', imp['city'], t) else '',
+                'ascale': self._cfgv('sc/t', imp['city'], t),
             }
         }),
     }
@@ -398,7 +419,7 @@ class c_terminal(c_base_terminal):
             cfg = self.config
             cpg = self.CFGPAGES[page]
             if callable(cpg):
-                cpg = cpg(self, ctx, imp, cfg)
+                cpg = cpg(self, ctx, imp)
             self.ctxset(ctx, cpg = cpg)
             intro, cfg_list = cpg
             print(intro)
