@@ -323,7 +323,7 @@ class c_terminal(c_base_terminal):
             '车组成员总技能加成',
             [
                 (f"疲劳轻减: {pctx['tired']}", ':pos_int', {
-                    'key': ['skill', 'tired'],
+                    'ckey': ['skill', 'tired'],
                     'intro': f"当前疲劳轻减: {pctx['tired']}",
                 }),
             ],
@@ -350,11 +350,11 @@ class c_terminal(c_base_terminal):
             f"城市: {imp['city']}",
             [
                 (f"封锁: {pctx['blck']}", ':yes_or_no', {
-                    'key': ['city block', imp['city']],
+                    'ckey': ['city block', imp['city']],
                     'intro': f"",
                 }),
                 (f"声望等级: {pctx['repu']}", ':pos_int', {
-                    'key': ['reputation', imp['city']],
+                    'ckey': ['reputation', imp['city']],
                     'intro': f"",
                 }),
             ],
@@ -397,6 +397,45 @@ class c_terminal(c_base_terminal):
                 return self.pop()
             else:
                 return self.push('input')
+
+    CFGIPTPAGES = {
+        'pos_int': (
+            lambda val: int(val[0]),
+            lambda val: val >= 0,
+        ),
+        'yes_or_no': (
+            lambda val: {'y': True, 'n': False}.get(val[0].lower()),
+            lambda val: not val is None,
+        ),
+    }
+    def stat_config_input(self, ctx, page, ckey, intro = None):
+        if self.phsw(ctx):
+            if intro:
+                print(intro)
+            print('x: 返回')
+            self.phnxt(ctx)
+            return self.push('input')
+        elif self.phsw(ctx):
+            ipt, = self.ctxret(ctx, 'ipt')
+            cmd = ipt[0]
+            if cmd == 'x':
+                return self.pop()
+            else:
+                cfg = self.config
+                prv, chk = self.CFGIPTPAGES[page]
+                if prv:
+                    try:
+                        val = prv(ipt)
+                    except:
+                        val = None
+                    if val is None:
+                        return self.push('input')
+                else:
+                    val = ipt
+                if chk and not chk(val):
+                    return self.push('input')
+                cfg.set(ckey, val)
+                return self.pop()
 
     PAGES = {
         'cities': (
