@@ -120,6 +120,7 @@ class c_picker(c_raw_picker):
     def update(self):
         if not super().update():
             return False
+        self.udat['guess_sell'] = {}
         self.gdat = {}
         self.gdat['tired'] = self._get_tired_tab(self.udat['tired'])
         self.gdat['item'] = self._get_item_list()
@@ -154,6 +155,7 @@ class c_picker(c_raw_picker):
         return self.gdat['tired'].get(c1, {}).get(c2, None)
 
     def _get_item_list(self):
+        guess_sell = self.udat['guess_sell']
         tlst = {}
         for itm in self.sta_dat['data']:
             nm = itm['name']
@@ -175,7 +177,8 @@ class c_picker(c_raw_picker):
                 ):
                     nprc = sls.get(s, None)
                     if not nprc is None:
-                        sls[c] = nprc
+                        #sls[c] = nprc
+                        guess_sell[(nm, c)] = (nprc, False)
                         break
             tlst[nm] = ritm
         return tlst
@@ -230,11 +233,30 @@ class c_picker(c_raw_picker):
         }
 
     def _get_sta_sell(self, name, city):
+        guess_sell = self.udat['guess_sell']
         tlst = self.gdat['item']
         if not name in tlst:
             return None
         itm = tlst[name]
-        return itm.get('sellPrices', {}).get(city, None)
+        sprcs = itm.get('sellPrices', {})
+        if not city in sprcs:
+            return None
+        sprc = sprcs[city]
+        if sprc is None:
+            gs = guess_sell.get((name, city))
+            if gs is None:
+                return None
+            sprc, gsure = gs
+            r = {
+                'base': sprc,
+            }
+            if not gsure:
+                r['guess_sell'] = True
+            return r
+        else:
+            return {
+                'base': sprc,
+            }
 
     def _get_dyn_sale(self, tkey, name, city, force = False):
         itm = self.dyn_dat['data'].get(name, {}).get(tkey, {}).get(city, None)
@@ -245,6 +267,7 @@ class c_picker(c_raw_picker):
                     'time': nowtime(),
                     'up': False,
                     'sale': 100,
+                    'guess_sale': True,
                 }
             else:
                 return None
@@ -252,11 +275,29 @@ class c_picker(c_raw_picker):
         time = itm.get('time', {})
         # time reformat only for old version
         #time = time.get('_seconds', -1) + time.get('_nanoseconds', 0) / 1e9
-        return {
+        r = {
             'time': time,
             'up': up,
             'sale': itm.get('variation', 100),
         }
+        if 'price' in itm:
+            r['dyn_price'] = itm['price']
+        return r
+
+    def _sync_dyn_price(self, itm, name, city):
+        if not 'dyn_price' in itm:
+            return
+        guess_sell = self.udat['guess_sell']
+        dsale = itm['dyn_price'] * 100 / itm['base']
+        if itm['sale'] == 0:
+            itm['sale'] = dsale
+        else:
+            if itm.get('guess_sell'):
+                dsell = itm['dyn_price'] * 100 / itm['sale']
+                guess_sell[(name, city)] = (dsell, True)
+                itm['base'] = dsell
+            else:
+                assert abs(dsale - itm['sale']) < 1
 
     def get_buy(self, name, city):
         sinfo = self._get_sta_buy(name, city)
@@ -266,6 +307,7 @@ class c_picker(c_raw_picker):
         if info is None:
             return None
         info.update(sinfo)
+        self._sync_dyn_price(info, name, city)
         return info
 
     def get_sell(self, name, city):
@@ -275,7 +317,8 @@ class c_picker(c_raw_picker):
         info = self._get_dyn_sale('sell', name, city, force = True)
         if info is None:
             return None
-        info['base'] = sinfo
+        info.update(sinfo)
+        self._sync_dyn_price(info, name, city)
         return info
 
 from configurator import make_config
