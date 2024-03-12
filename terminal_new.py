@@ -277,22 +277,28 @@ class c_terminal(c_base_terminal):
             print(f'利润: {route.total:.2f}')
             print(f'利润/疲劳: {route.total / route.tired:.2f}')
             pr = {}
-            for (nm, src), (dst, p, n) in route.profits.items():
+            for (nm, src), (dst, p, n) in sorted(
+                    route.profits.items(),
+                    key = lambda v: v[1][1], reverse = True):
                 if n == 0:
                     continue
                 if not src in pr:
                     pr[src] = ([], [])
                 if not dst in pr:
                     pr[dst] = ([], [])
-                pr[src][0].append(nm)
+                pr[src][0].append((nm, p))
                 pr[dst][1].append((nm, p))
             for c in route.path:
+                print(f'=====')
+                print(f'{c}:')
                 rs = []
-                for nm in pr[c][0]:
-                    rs.append(f'{nm}(入)')
+                for nm, p in pr[c][0]:
+                    rs.append(f'{nm}(入{p:+.2f})')
+                print(', '.join(rs))
+                rs.clear()
                 for nm, p in pr[c][1]:
                     rs.append(f'{nm}(出{p:+.2f})')
-                print(f'{c}:', ', '.join(rs))
+                print(', '.join(rs))
             print('x: 返回')
             self.phnxt(ctx)
             return self.push('input')
