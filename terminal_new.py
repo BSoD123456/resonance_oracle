@@ -317,7 +317,7 @@ class c_terminal(c_base_terminal):
         'repu': lambda c: (['reputation', c], 0),
         'sc/c': lambda c: (['city num scale', c], 0),
         'blk/t': lambda c, t: (['item block', c, t], False),
-        'sc/t': lambda c, t: (['item num scale', c, t], 0),
+        'sc/t': lambda t: (['item num scale', t], 0),
     }
 
     def _cfgprs(self, key, args):
@@ -388,6 +388,7 @@ class c_terminal(c_base_terminal):
                 }),
                 ('详细货物进货设置', 'items', {
                     'city': imp['city'],
+                    'cscale': pctx['repu'] * 10 + pctx['nscale'],
                 }),
             ],
         ))({
@@ -401,6 +402,7 @@ class c_terminal(c_base_terminal):
                 (lambda tname:(
                     f"{pctx['func'](tname)['blck']}{tname} {pctx['func'](tname)['ascale']:+.0f}%", 'item', {
                         'city': imp['city'],
+                        'cscale': imp['cscale'],
                         'item': tname,
                     },
                 ))(tname) # multiply uniq city var to argument
@@ -410,8 +412,25 @@ class c_terminal(c_base_terminal):
             'tlst': self.router.get_city_list()[imp['city']],
             'func': lambda t: {
                 'blck': '(X) ' if self._cfgv('blk/t', imp['city'], t) else '',
-                'ascale': self._cfgv('sc/t', imp['city'], t),
+                'ascale': imp['cscale'] + self._cfgv('sc/t', t),
             }
+        }),
+        'item': lambda self, ctx, imp: (lambda pctx:(
+            f"{imp['item']} 来自 {imp['city']}\n"
+            f"货物总加成: {imp['cscale'] + pctx['nscale']:+.0f}% = {imp['cscale']:+.0f}%(城市){pctx['nscale']:+.0f}%(额外)",
+            [
+                (f"封锁: {pctx['blck']}", ':yes_or_no', {
+                    'ckey': self._cfgk('blk/t', imp['city'], imp['item']),
+                    'intro': f"",
+                }),
+                (f"额外进货加成: {pctx['nscale']:+.0f}%", ':int', {
+                    'ckey': self._cfgk('sc/t', imp['item']),
+                    'intro': f"",
+                }),
+            ],
+        ))({
+            'blck': 'Yes' if self._cfgv('blk/t', imp['city'], imp['item']) else 'No',
+            'nscale': self._cfgv('sc/t', imp['item']),
         }),
     }
     def stat_config(self, ctx, page, **imp):
