@@ -166,15 +166,15 @@ class c_terminal(c_base_terminal):
         if self.phsw(ctx):
             rtr = self.router
             cfg = self.config
-            time_min = cfg.get(['market', 'time min'], 0)
-            time_max = cfg.get(['market', 'time max'], 60)
+            time_min = self._cfgv('mk/tm/n')
+            time_max = self._cfgv('mk/tm/x')
             calced, = self.ctxget(ctx, 'calced')
             if calced:
                 cur, mktt, rank = self.ctxget(ctx, 'cur', 'mktt', 'rank')
             else:
                 cur = nowtime()
-                max_cities = cfg.get(['market', 'max cities'], 3)
-                max_ranks = cfg.get(['market', 'max ranks'], 5)
+                max_cities = self._cfgv('mk/xct')
+                max_ranks = self._cfgv('mk/xrk')
                 tseq = [cur + t * 60 for t in self._rng_seq_stp(
                     time_min, time_max, self.TIME_STEP)]
                 mktt = rtr.calc_prd_market(tseq)
@@ -209,7 +209,7 @@ class c_terminal(c_base_terminal):
                 return self.push('market_detail',
                     **self.ctxflt(ctx, 'cur', 'rank'))
             elif cmd == 'c':
-                self.phrst(ctx)
+                self.ctxrst(ctx)
                 return self.push('config', page = 'market')
             elif cmd == 'x':
                 return self.pop()
@@ -220,8 +220,8 @@ class c_terminal(c_base_terminal):
         if self.phsw(ctx):
             rtr = self.router
             cfg = self.config
-            time_min = cfg.get(['market', 'time min'], 0)
-            time_max = cfg.get(['market', 'time max'], 60)
+            time_min = self._cfgv('mk/tm/n')
+            time_max = self._cfgv('mk/tm/x')
             print(f'预测时间: {ctime(cur)}')
             print(f'预测范围: {time_min} 分 ~ {time_max} 分')
             tab = []
@@ -312,6 +312,10 @@ class c_terminal(c_base_terminal):
                 return self.push('input')
 
     CFGKEYS = {
+        'mk/tm/n': (['market', 'time min'], 0),
+        'mk/tm/x': (['market', 'time max'], 60),
+        'mk/xct': (['market', 'max cities'], 3),
+        'mk/xrk': (['market', 'max ranks'], 5),
         'sk/tr': (['skill', 'tired'], 1),
         'blk/c': lambda c: (['city block', c], False),
         'repu': lambda c: (['reputation', c], 0),
@@ -333,6 +337,32 @@ class c_terminal(c_base_terminal):
         return self.config.get(*self._cfgprs(key, args))
 
     CFGPAGES = {
+        'market': lambda self, ctx, imp: (lambda pctx:(
+            '统计参数',
+            [
+                (f"路线最大站数: {pctx['xct']} 站", ':pos_int', {
+                    'ckey': self._cfgk('mk/xct'),
+                    'intro': f"规划路线最多 {pctx['xct']} 站",
+                }),
+                (f"预测起始时间: {pctx['ntm']} 分", ':pos_int', {
+                    'ckey': self._cfgk('mk/tm/n'),
+                    'intro': f"预测从第 {pctx['ntm']} 分钟开始",
+                }),
+                (f"预测终止时间: {pctx['xtm']} 分", ':pos_int', {
+                    'ckey': self._cfgk('mk/tm/x'),
+                    'intro': f"预测到第 {pctx['xtm']} 分钟结束",
+                }),
+                (f"排行最大数量: {pctx['xrk']} 条", ':pos_int', {
+                    'ckey': self._cfgk('mk/xrk'),
+                    'intro': f"排行榜最多 {pctx['xrk']} 条",
+                }),
+            ],
+        ))({
+            'xct': self._cfgv('mk/xct'),
+            'ntm': self._cfgv('mk/tm/n'),
+            'xtm': self._cfgv('mk/tm/x'),
+            'xrk': self._cfgv('mk/xrk'),
+        }),
         'game': (
             '车组相关信息',
             [
@@ -515,72 +545,6 @@ class c_terminal(c_base_terminal):
                     return self.push('input')
                 cfg.set(ckey, val)
                 return self.pop()
-
-    PAGES = {
-        'cities': (
-            lambda self, cfg, ctx: {
-                'city_list': list(self.router.get_city_list().keys()),
-                'repu': lambda c: cfg.get(['reputation', c], 0),
-                'blck': lambda c: cfg.get(['city block', c], False),
-            },
-            '城市信息',
-            lambda cfg, ctx: [
-                (lambda city:(
-                    lambda cfg, ctx:
-                        f'声望:{ctx["repu"](city): 2} '
-                        f'{"X " if ctx["blck"](city) else ""}{city}',
-                    lambda cfg, ctx:(
-                        'city', {}
-                    ),
-                ))(city) # multiply uniq city var to argument
-                for city in ctx['city_list']
-            ],
-        ),
-        'city': (
-            lambda self, cfg, ctx: {
-                'repu': cfg.get(['reputation', ctx['city']], 0),
-                'blck': cfg.get(['city block', ctx['city']], False),
-            },
-            lambda cfg, ctx: f'{ctx["city"]}',
-            [(
-                lambda cfg, ctx: f'声望: {ctx["repu"]}',
-                lambda cfg, ctx:
-                    f'城市: {ctx["city"]}\n'
-                    f'声望: {ctx["repu"]}\n'
-                    f'进货加成: +{ctx["repu"] * 10}%\n'
-                    '输入声望等级:',
-                lambda cfg, ctx, val: int(val[0]),
-                lambda cfg, ctx, val: val >= 0,
-                lambda cfg, ctx, val: [
-                    (['reputation', ctx['city']], val),
-                ],
-            ), (
-                lambda cfg, ctx: f'忽略: {"yes" if ctx["blck"] else "no"}',
-                lambda cfg, ctx:
-                    f'城市: {ctx["city"]}\n'
-                    f'忽略: {"yes" if ctx["blck"] else "no"}\n'
-                    '是否忽略该城市(y/n):',
-                lambda cfg, ctx, val: val[0].lower(),
-                lambda cfg, ctx, val: val in ('y', 'n'),
-                lambda cfg, ctx, val: [
-                    (['city block', ctx['city']],
-                     True if val == 'y' else False if val == 'n' else None),
-                ],
-            ), (
-                '货物锁定',
-                lambda cfg, ctx: (
-                    'config_itemblock', {
-                        'city': ctx['city'],
-                }),
-            )],
-        ),
-        'market': [(
-            '时间起点(分)',
-            ['market', 'time min'],
-            lambda s: int(s),
-            0, None,
-        )],
-    }
 
 if __name__ == '__main__':
     from pdb import pm
