@@ -277,27 +277,20 @@ class c_terminal(c_base_terminal):
                 [str(i) for i in route.tlst]))
             print(f'利润: {route.total:.2f}')
             print(f'利润/疲劳: {route.total / route.tired:.2f}')
-            pr = {}
-            for (nm, src), (dst, p, n) in sorted(
-                    route.profits.items(),
-                    key = lambda v: v[1][1], reverse = True):
-                if n == 0:
-                    continue
-                if not src in pr:
-                    pr[src] = ([], [])
-                if not dst in pr:
-                    pr[dst] = ([], [])
-                pr[src][0].append((nm, p))
-                pr[dst][1].append((nm, p))
+            print(f'最大载货占用: {route.max_hold_mass[0]:.0f} 正向 / {route.max_hold_mass[1]:.0f} 反向')
+            print(f'最大载货利润: {route.max_hold_prof[0]:.2f} 正向 / {route.max_hold_prof[1]:.2f} 反向')
             for c in route.path:
+                stt = route.station[c]
                 print(f'=====')
-                print(f'{c}:')
+                print(f"{c}: 载货占用: {stt['hold_mass'][0]:.0f} 正向 / {stt['hold_mass'][1]:.0f} 反向 载货利润: {stt['hold_prof'][0]:.2f} 正向 / {stt['hold_prof'][1]:.2f} 反向")
+                print(f"--- 入货总利润: {stt['buy_total']:.2f} ---")
                 rs = []
-                for nm, p in pr[c][0]:
+                for nm, p, _ in stt['buy']:
                     rs.append(f'{nm}(入{p:+.2f})')
                 print(', '.join(rs))
                 rs.clear()
-                for nm, p in pr[c][1]:
+                print(f"--- 出货总利润: {stt['sell_total']:.2f} ---")
+                for nm, p, _ in stt['sell']:
                     rs.append(f'{nm}(出{p:+.2f})')
                 print(', '.join(rs))
             print('x: 返回')

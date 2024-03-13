@@ -20,6 +20,65 @@ class c_route:
         self.profits = profits
         self.total = total_profit
         self.benefit = total_profit / self.tired
+        self._calc_station()
+
+    def _calc_station(self):
+        plen = self.plen
+        path = self.path
+        stts = {k: {
+            'idx': i,
+            'buy': [],
+            'sell': [],
+            'buy_total': 0,
+            'sell_total': 0,
+            'hold_mass': [0, 0],
+            'hold_prof': [0, 0],
+        } for i, k in enumerate(path)}
+        for (nm, src), (dst, p, n) in sorted(
+                self.profits.items(),
+                key = lambda v: v[1][1], reverse = True):
+            if n == 0:
+                continue
+            stts[src]['buy'].append((nm, p, n))
+            stts[dst]['sell'].append((nm, p, n))
+        for stt in stts.values():
+            buy_total = 0
+            buy_mass = 0
+            for _, p, n in stt['buy']:
+                buy_total += p * n
+                buy_mass += n
+            sell_total = sum(p * n for _, p, n in stt['sell'])
+            stt['buy_total'] = buy_total
+            stt['sell_total'] = sell_total
+            bsi = stt['idx']
+            stt['hold_mass'][0] += buy_mass
+            stt['hold_mass'][1] += buy_mass
+            stt['hold_prof'][0] += buy_total
+            stt['hold_prof'][1] += buy_total
+            hold_mass = [buy_mass, buy_mass]
+            hold_prof = [buy_total, buy_total]
+            hold_set = set(nm for nm, *_ in stt['buy'])
+            for di in range(1, plen):
+                for stp, hi in [(1, 0), (-1, 1)]:
+                    dstt = stts[path[(bsi + di * stp) % plen]]
+                    for nm, p, n in dstt['sell']:
+                        if not nm in hold_set:
+                            continue
+                        hold_mass[hi] -= n
+                        hold_prof[hi] -= p * n
+                    dstt['hold_mass'][hi] += hold_mass[hi]
+                    dstt['hold_prof'][hi] += hold_prof[hi]
+        self.station = stts
+        max_hold_mass = [0, 0]
+        max_hold_prof = [0, 0]
+        for stt in stts.values():
+            for hi in [0, 1]:
+                if stt['hold_mass'][hi] > max_hold_mass[hi]:
+                    max_hold_mass[hi] = stt['hold_mass'][hi]
+                if stt['hold_prof'][hi] > max_hold_prof[hi]:
+                    max_hold_prof[hi] = stt['hold_prof'][hi]
+        self.max_hold_mass = max_hold_mass
+        self.max_hold_prof = max_hold_prof
 
     def new_profits(self, profits, total_profit = None):
         return c_route(
