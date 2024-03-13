@@ -208,7 +208,7 @@ class c_picker(c_raw_picker):
         cfg = self.cfg
         if not cfg.get(['global num scale'], True):
             return 1
-        if cfg.get(['item block', city, name], False):
+        if cfg.get(['item block', name], False):
             return 0
         repu = cfg.get(['reputation', city], 0)
         cscl = cfg.get(['city num scale', city], 0)

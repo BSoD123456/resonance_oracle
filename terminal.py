@@ -320,7 +320,7 @@ class c_terminal(c_base_terminal):
         'blk/c': lambda c: (['city block', c], False),
         'repu': lambda c: (['reputation', c], 0),
         'sc/c': lambda c: (['city num scale', c], 0),
-        'blk/t': lambda c, t: (['item block', c, t], False),
+        'blk/t': lambda t: (['item block', t], False),
         'sc/t': lambda t: (['item num scale', t], 0),
         'sc/g': (['global num scale'], True),
     }
@@ -449,7 +449,7 @@ class c_terminal(c_base_terminal):
         ))({
             'tlst': self.router.get_city_list()[imp['city']],
             'func': lambda t: {
-                'blck': '(X) ' if self._cfgv('blk/t', imp['city'], t) else '',
+                'blck': '(X) ' if self._cfgv('blk/t', t) else '',
                 'ascale': imp['cscale'] + self._cfgv('sc/t', t),
             }
         }),
@@ -458,8 +458,8 @@ class c_terminal(c_base_terminal):
             f"货物总加成: {imp['cscale'] + pctx['nscale']:+.0f}% = {imp['cscale']:+.0f}%(城市){pctx['nscale']:+.0f}%(额外)",
             [
                 (f"封锁: {pctx['blck']}", ':yes_or_no', {
-                    'ckey': self._cfgk('blk/t', imp['city'], imp['item']),
-                    'intro': f"{imp['item']} 来自 {imp['city']} 当前 {pctx['blck']}",
+                    'ckey': self._cfgk('blk/t', imp['item']),
+                    'intro': f"{imp['item']} 当前 {pctx['blck']}",
                 }),
                 (f"额外进货加成: {pctx['nscale']:+.0f}%", ':int', {
                     'ckey': self._cfgk('sc/t', imp['item']),
@@ -467,7 +467,7 @@ class c_terminal(c_base_terminal):
                 }),
             ],
         ))({
-            'blck': '已封锁' if self._cfgv('blk/t', imp['city'], imp['item']) else '未封锁',
+            'blck': '已封锁' if self._cfgv('blk/t', imp['item']) else '未封锁',
             'nscale': self._cfgv('sc/t', imp['item']),
         }),
     }
