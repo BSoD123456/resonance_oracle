@@ -4,7 +4,7 @@
 
 第一张便条用潦草的字体写着简短的文字：
 
-> 连沙盗都能看懂的使用说明：
+> 连沙盗都能看懂的使用说明：  
 > 1, 安装Python。  
 2, 运行main.py。  
 3, 配置车组信息。  
@@ -16,4 +16,4 @@
 基础数据全是从 [商会(https://www.resonance-columba.com/)](https://www.resonance-columba.com/) 扒来的。  
 而其余的数据充满了毫无依据的主观猜测。  
 满口胡言乱语，纯属戏言。  
-                    ———— 索思学会 蓝色学者
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ———— 索思学会 蓝色学者
