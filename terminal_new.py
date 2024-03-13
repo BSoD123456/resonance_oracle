@@ -322,6 +322,7 @@ class c_terminal(c_base_terminal):
         'sc/c': lambda c: (['city num scale', c], 0),
         'blk/t': lambda c, t: (['item block', c, t], False),
         'sc/t': lambda t: (['item num scale', t], 0),
+        'sc/g': (['global num scale'], True),
     }
 
     def _cfgprs(self, key, args):
@@ -363,13 +364,20 @@ class c_terminal(c_base_terminal):
             'xtm': self._cfgv('mk/tm/x'),
             'xrk': self._cfgv('mk/xrk'),
         }),
-        'game': (
+        'game': lambda self, ctx, imp: (lambda pctx:(
             '车组相关信息',
             [
                 ('车组技能', 'skill'),
                 ('城市信息', 'cities'),
+                (f"进货加成总开关: {pctx['gsc']}", ':yes_or_no', {
+                    'ckey': self._cfgk('sc/g'),
+                    'intro': f"当进货加成总开关 关闭 时，将不再计算任何进货加成(包括封锁的货物也将正常进货)。\n"
+                    f"当前 已{pctx['gsc']}",
+                }),
             ],
-        ),
+        ))({
+            'gsc': '开启' if self._cfgv('sc/g') else '关闭',
+        }),
         'skill': lambda self, ctx, imp: (lambda pctx:(
             '车组成员总技能加成',
             [
@@ -510,7 +518,7 @@ class c_terminal(c_base_terminal):
             lambda val: val >= 0,
         ),
         'yes_or_no': (
-            '开启请输入y，关闭请输入n:',
+            '开启请输入 y ，关闭请输入 n :',
             lambda val: {'y': True, 'n': False}.get(val[0].lower()),
             lambda val: not val is None,
         ),
