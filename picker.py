@@ -208,10 +208,10 @@ class c_picker(c_raw_picker):
         cfg = self.cfg
         if cfg.get(['item block', city, name]):
             return 0
-        repu = cfg.get(['reputation', city])
-        if not repu:
-            return None
-        return 1 + repu / 100
+        repu = cfg.get(['reputation', city], 0)
+        cscl = cfg.get(['city num scale', city], 0)
+        tscl = cfg.get(['item num scale', name], 0)
+        return 1 + (repu * 10 + cscl + tscl) / 100
 
     def _get_sta_buy(self, name, city):
         tlst = self.gdat['item']
