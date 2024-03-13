@@ -345,7 +345,7 @@ class c_terminal(c_base_terminal):
             [
                 (f"疲劳轻减: {pctx['tired']}", ':pos_int', {
                     'ckey': self._cfgk('sk/tr'),
-                    'intro': f"当前疲劳轻减: {pctx['tired']}",
+                    'intro': f"当前每次行车减轻 {pctx['tired']} 点疲劳",
                 }),
             ],
         ))({
@@ -376,15 +376,15 @@ class c_terminal(c_base_terminal):
             [
                 (f"封锁: {pctx['blck']}", ':yes_or_no', {
                     'ckey': self._cfgk('blk/c', imp['city']),
-                    'intro': f"",
+                    'intro': f"{imp['city']} 当前 {pctx['blck']}",
                 }),
                 (f"声望等级: {pctx['repu']}", ':pos_int', {
                     'ckey': self._cfgk('repu', imp['city']),
-                    'intro': f"",
+                    'intro': f"{imp['city']} 当前声望 {pctx['repu']} 级",
                 }),
                 (f"额外进货加成: {pctx['nscale']:+.0f}%", ':int', {
                     'ckey': self._cfgk('sc/c', imp['city']),
-                    'intro': f"",
+                    'intro': f"{imp['city']} 当前额外进货加成 {pctx['nscale']:+.0f}%",
                 }),
                 ('详细货物进货设置', 'items', {
                     'city': imp['city'],
@@ -392,7 +392,7 @@ class c_terminal(c_base_terminal):
                 }),
             ],
         ))({
-            'blck': 'Yes' if self._cfgv('blk/c', imp['city']) else 'No',
+            'blck': '已封锁' if self._cfgv('blk/c', imp['city']) else '未封锁',
             'repu': self._cfgv('repu', imp['city']),
             'nscale': self._cfgv('sc/c', imp['city']),
         }),
@@ -421,15 +421,15 @@ class c_terminal(c_base_terminal):
             [
                 (f"封锁: {pctx['blck']}", ':yes_or_no', {
                     'ckey': self._cfgk('blk/t', imp['city'], imp['item']),
-                    'intro': f"",
+                    'intro': f"{imp['item']} 来自 {imp['city']} 当前 {pctx['blck']}",
                 }),
                 (f"额外进货加成: {pctx['nscale']:+.0f}%", ':int', {
                     'ckey': self._cfgk('sc/t', imp['item']),
-                    'intro': f"",
+                    'intro': f"{imp['item']} 当前额外进货加成 {pctx['nscale']:+.0f}%",
                 }),
             ],
         ))({
-            'blck': 'Yes' if self._cfgv('blk/t', imp['city'], imp['item']) else 'No',
+            'blck': '已封锁' if self._cfgv('blk/t', imp['city'], imp['item']) else '未封锁',
             'nscale': self._cfgv('sc/t', imp['item']),
         }),
     }
@@ -470,23 +470,29 @@ class c_terminal(c_base_terminal):
 
     CFGIPTPAGES = {
         'int': (
+            '请输入一个整数:',
             lambda val: int(val[0]),
             None,
         ),
         'pos_int': (
+            '请输入一个正整数:',
             lambda val: int(val[0]),
             lambda val: val >= 0,
         ),
         'yes_or_no': (
+            '开启请输入y，关闭请输入n:',
             lambda val: {'y': True, 'n': False}.get(val[0].lower()),
             lambda val: not val is None,
         ),
     }
     def stat_config_input(self, ctx, page, ckey, intro = None):
+        hint, prv, chk = self.CFGIPTPAGES[page]
         if self.phsw(ctx):
             if intro:
                 print(intro)
             print('x: 返回')
+            if hint:
+                print(hint)
             self.phnxt(ctx)
             return self.push('input')
         elif self.phsw(ctx):
@@ -496,7 +502,6 @@ class c_terminal(c_base_terminal):
                 return self.pop()
             else:
                 cfg = self.config
-                prv, chk = self.CFGIPTPAGES[page]
                 if prv:
                     try:
                         val = prv(ipt)
