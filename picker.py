@@ -10,6 +10,7 @@ from socket import error as serr
 DOM_URL = 'https://www.resonance-columba.com'
 #DAT_URL = '/api/get-prices'
 DAT_URL = '/api/get-prices-v2'
+RT_URL = '/route'
 
 TIRED_TAB = {
     'i': {
@@ -27,9 +28,8 @@ TIRED_TAB = {
         ])
     },
     'v': [
-        [24, # not sure
-         24, 29, 32, 35, 39, 40, 45],
-        [24, 28, 31, 34, 38, 39, 44], # not sure
+        [24, 24, 29, 32, 35, 39, 40, 45],
+        [25, 24, 24, 27, 31, 33, 37],
         [25, 27, 31, 34, 35, 40],
         [24, 24, 27, 28, 33],
         [24, 24, 24, 27],
@@ -41,19 +41,27 @@ TIRED_TAB = {
 
 class c_raw_picker:
 
-    def __init__(self, dom_url, dat_url,
+    def __init__(self, dom_url, dat_url, rt_url,
             sta_thr = 3600 * 24, dyn_thr = 60 * 20,
             enc = 'utf-8', timeout = 10):
         self.enc = 'utf-8'
         self.timeout = timeout
         self.dom_url = dom_url
         self.dat_url = parse.urljoin(dom_url, dat_url)
+        self.rt_url = parse.urljoin(dom_url, rt_url)
         self.sta_thr = sta_thr
         self.dyn_thr = dyn_thr
 
     def _get_dynamic(self, url):
         resp = request.urlopen(url, timeout = self.timeout)
         return json.load(resp)['data']
+
+    @staticmethod
+    def _js2json(s):
+        dat = re.sub(r'([{,]\s*)([^\s{}:,\"]+?)\s*:', r'\1"\2":', s)
+        dat = re.sub(r'([^\w])(\.\d+[^\w])', r'\g<1>0\2', dat)
+        dat = json.loads(dat)
+        return dat
 
     def _get_static(self, url):
         resp = request.urlopen(url, timeout = self.timeout)
@@ -64,9 +72,17 @@ class c_raw_picker:
         resp = request.urlopen(url)
         raw = resp.read().decode(self.enc)
         m = re.search(r'\w+\s*=\s*(\[[^"]+?name\s*\:\s*\"[^\"]+\"\s*,.*?\])', raw)
-        dat = re.sub(r'([{,]\s*)([^\s{}:,\"]+?)\s*:', r'\1"\2":', m.group(1))
-        dat = re.sub(r'([^\w])(\.\d+[^\w])', r'\g<1>0\2', dat)
-        return json.loads(dat)
+        return self._js2json(m.group(1))
+
+    def _get_route(self, url):
+        resp = request.urlopen(url, timeout = self.timeout)
+        raw = resp.read().decode(self.enc)
+        m = re.search(r'<script src\s*=\s*\"([^\"]+?page-\w+\.js)"', raw)
+        url = parse.urljoin(self.dom_url, m.group(1))
+        resp = request.urlopen(url)
+        raw = resp.read().decode(self.enc)
+        m = re.search(r'\w+\s*=\s*(\[(\s*\{.*?cities\s*\:\s*\[[^\]]+]\s*,.*?fatigue\s*\:\s*\d+.*?\})+\s*\])', raw)
+        return self._js2json(m.group(1))
 
     def _cache(self, cur, thr, fn, cb):
         enc = 'utf-8'
@@ -97,6 +113,11 @@ class c_raw_picker:
                 self.sta_thr,
                 'static.json',
                 lambda: self._get_static(self.dom_url))
+            self.rt_dat = self._cache(
+                upd_time,
+                self.sta_thr,
+                'route.json',
+                lambda: self._get_route(self.rt_url))
             self.dyn_dat = self._cache(
                 upd_time,
                 self.dyn_thr,
@@ -149,6 +170,18 @@ class c_picker(c_raw_picker):
             for i2, c2 in enumerate(itab):
                 ln[c2] = self._pick_tired(vtab, i1, i2, tofs)
             rtab[c1] = ln
+        return rtab
+
+    def _get_tired_tab2(self):
+        rtab = {}
+        for ti in self.rt_dat['data']:
+            for si, di in [(0, 1), (1, 0)]:
+                src = ti['cities'][si]
+                dst = ti['cities'][di]
+                if not src in rtab:
+                    rtab[src] = {src: 0}
+                assert not dst in rtab[src]
+                rtab[src][dst] = ti['fatigue']
         return rtab
 
     def get_tired(self, c1, c2):
@@ -326,7 +359,7 @@ class c_picker(c_raw_picker):
 from configurator import make_config
 
 def make_picker():
-    return c_picker(DOM_URL, DAT_URL,
+    return c_picker(DOM_URL, DAT_URL, RT_URL,
         tired_tab = TIRED_TAB, glb_cfg = make_config())
 
 if __name__ == '__main__':
