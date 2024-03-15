@@ -115,12 +115,12 @@ class c_terminal(c_base_terminal):
         self.router = make_router()
         self.config = self.router.get_config()
         while True:
-            print('正在从商会获取数据 ... ', end = '')
+            print('正在从商会获取数据 ... ')
             if self.router.update():
                 break
             print('failed')
             print('开始重试')
-        print('done')
+        #print('done')
         return self.goto('main')
 
     def stat_main(self, ctx):
@@ -376,7 +376,8 @@ class c_terminal(c_base_terminal):
             [
                 (f"疲劳轻减: {pctx['tired']}", ':pos_int', {
                     'ckey': self._cfgk('sk/tr'),
-                    'intro': f"当前每次行车减轻 {pctx['tired']} 点疲劳",
+                    'intro': f"当前每次行车减轻 {pctx['tired']} 点疲劳\n"
+                    '（修改该设置后需重启程序生效）',
                 }),
             ],
         ))({
