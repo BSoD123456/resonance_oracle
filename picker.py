@@ -12,33 +12,6 @@ DOM_URL = 'https://www.resonance-columba.com'
 DAT_URL = '/api/get-prices-v2'
 RT_URL = '/route'
 
-TIRED_TAB = {
-    'i': {
-        n: i
-        for i, n in enumerate([
-            '阿妮塔能源研究所',
-            '阿妮塔战备工厂',
-            '七号自由港',
-            '澄明数据中心',
-            '修格里城',
-            '铁盟哨站',
-            '荒原站',
-            '曼德矿场',
-            '淘金乐园',
-        ])
-    },
-    'v': [
-        [24, 24, 29, 32, 35, 39, 40, 45],
-        [25, 24, 24, 27, 31, 33, 37],
-        [25, 27, 31, 34, 35, 40],
-        [24, 24, 27, 28, 33],
-        [24, 24, 24, 27],
-        [24, 24, 24],
-        [24, 25],
-        [24],
-    ]
-}
-
 class c_raw_picker:
 
     def __init__(self, dom_url, dat_url, rt_url,
@@ -131,11 +104,9 @@ class c_raw_picker:
 
 class c_picker(c_raw_picker):
 
-    def __init__(self, *args, tired_tab, glb_cfg, **kargs):
+    def __init__(self, *args, glb_cfg, **kargs):
         self.cfg = glb_cfg
-        self.udat = {
-            'tired': tired_tab,
-        }
+        self.udat = {}
         super().__init__(*args, **kargs)
 
     def update(self):
@@ -143,7 +114,7 @@ class c_picker(c_raw_picker):
             return False
         self.udat['guess_sell'] = {}
         self.gdat = {}
-        self.gdat['tired'] = self._get_tired_tab(self.udat['tired'])
+        self.gdat['tired'] = self._get_tired_tab()
         self.gdat['item'] = self._get_item_list()
         self.gdat['city'] = self._get_city_list(self.gdat['item'])
         return True
@@ -151,29 +122,9 @@ class c_picker(c_raw_picker):
     def get_config(self):
         return self.cfg
 
-    def _pick_tired(self, tab, i1, i2, ofs):
-        if i1 == i2:
-            return 0
-        elif i1 > i2:
-            _v = i2
-            i2 = i1
-            i1 = _v
-        return tab[i1][i2 - i1 - 1] + ofs
-
-    def _get_tired_tab(self, tab):
-        itab = tab['i']
-        vtab = tab['v']
+    def _get_tired_tab(self):
         rtab = {}
-        tofs = - self.cfg.get(['skill', 'tired'], 1)
-        for i1, c1 in enumerate(itab):
-            ln = {}
-            for i2, c2 in enumerate(itab):
-                ln[c2] = self._pick_tired(vtab, i1, i2, tofs)
-            rtab[c1] = ln
-        return rtab
-
-    def _get_tired_tab2(self):
-        rtab = {}
+        tofs = self.cfg.get(['skill', 'tired'], 1)
         for ti in self.rt_dat['data']:
             for si, di in [(0, 1), (1, 0)]:
                 src = ti['cities'][si]
@@ -181,7 +132,7 @@ class c_picker(c_raw_picker):
                 if not src in rtab:
                     rtab[src] = {src: 0}
                 assert not dst in rtab[src]
-                rtab[src][dst] = ti['fatigue']
+                rtab[src][dst] = ti['fatigue'] + 1 - tofs
         return rtab
 
     def get_tired(self, c1, c2):
@@ -359,8 +310,7 @@ class c_picker(c_raw_picker):
 from configurator import make_config
 
 def make_picker():
-    return c_picker(DOM_URL, DAT_URL, RT_URL,
-        tired_tab = TIRED_TAB, glb_cfg = make_config())
+    return c_picker(DOM_URL, DAT_URL, RT_URL, glb_cfg = make_config())
 
 if __name__ == '__main__':
     from pdb import pm
