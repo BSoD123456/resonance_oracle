@@ -187,6 +187,7 @@ class c_terminal(c_base_terminal):
                     rank = rank)
             print(f'预测时间: {ctime(cur)}')
             print(f'预测范围: {time_min} 分 ~ {time_max} 分')
+            print(f"最小买入利润: {self._cfgv('mk/prth'):+.2f}")
             print(f'大盘总利润: {mktt:.2f}')
             for i, (rts, ben) in enumerate(rank):
                 rt = rts[0]
@@ -316,6 +317,7 @@ class c_terminal(c_base_terminal):
         'mk/tm/x': (['market', 'time max'], 60),
         'mk/xct': (['market', 'max cities'], 3),
         'mk/xrk': (['market', 'max ranks'], 5),
+        'mk/prth': (['market', 'profit threshold'], 0),
         'sk/tr': (['skill', 'tired'], 1),
         'blk/c': lambda c: (['city block', c], False),
         'repu': lambda c: (['reputation', c], 0),
@@ -353,6 +355,10 @@ class c_terminal(c_base_terminal):
                     'ckey': self._cfgk('mk/tm/x'),
                     'intro': f"预测到第 {pctx['xtm']} 分钟结束",
                 }),
+                (f"最小买入利润: {pctx['prth']:+.2f}", ':pos_float', {
+                    'ckey': self._cfgk('mk/prth'),
+                    'intro': f"仅当利润大于 {pctx['prth']:+.2f} 时买入",
+                }),
                 (f"排行最大数量: {pctx['xrk']} 条", ':pos_int', {
                     'ckey': self._cfgk('mk/xrk'),
                     'intro': f"排行榜最多 {pctx['xrk']} 条",
@@ -363,6 +369,7 @@ class c_terminal(c_base_terminal):
             'ntm': self._cfgv('mk/tm/n'),
             'xtm': self._cfgv('mk/tm/x'),
             'xrk': self._cfgv('mk/xrk'),
+            'prth': self._cfgv('mk/prth'),
         }),
         'game': lambda self, ctx, imp: (lambda pctx:(
             '车组相关信息',
@@ -516,6 +523,11 @@ class c_terminal(c_base_terminal):
         'pos_int': (
             '请输入一个正整数:',
             lambda val: int(val[0]),
+            lambda val: val >= 0,
+        ),
+        'pos_float': (
+            '请输入一个正数:',
+            lambda val: float(val[0]),
             lambda val: val >= 0,
         ),
         'yes_or_no': (

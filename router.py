@@ -126,6 +126,8 @@ class c_router:
             yield path, tuple(self._iter_tired(path))
 
     def _calc_profit(self, city_list, cgrp, time):
+        cfg = self.get_config()
+        prf_thr = cfg.get(['market', 'profit threshold'], 0)
         profits = {}
         for src in cgrp:
             buy_list = {
@@ -143,7 +145,7 @@ class c_router:
                     prf = sell_info['price'] - buy_info['price']
                     pkey = (nm, src)
                     if not pkey in profits or prf > profits[pkey][1]:
-                        if prf > 0:
+                        if prf > prf_thr:
                             num = buy_info['number']
                         else:
                             num = 0
