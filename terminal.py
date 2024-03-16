@@ -190,7 +190,14 @@ class c_terminal(c_base_terminal):
             print(f'大盘总利润: {mktt:.2f}')
             for i, (rts, ben) in enumerate(rank):
                 rt = rts[0]
-                print(f'{i+1}: 利润/疲劳: {ben:.2f} 线路:{rt.plen}站 {rt.repr_path()}')
+                mh1, mh2 = rt.max_hold_mass
+                if mh1 < mh2:
+                    mh = mh1
+                    mhd = '正'
+                else:
+                    mh = mh2
+                    mhd = '反'
+                print(f'{i+1:>2}: 利润/疲劳: {ben:.2f} 载货:{mh:>4.0f}({mhd}) 线路:{rt.plen}站 {rt.repr_path()}')
             print('d: 详细走势')
             print('c: 配置统计信息')
             print('x: 返回')
@@ -253,7 +260,7 @@ class c_terminal(c_base_terminal):
                     if dr:
                         r += f'({dr:+7.2f})'
                     rs.append(r)
-                print(f'{i+1}:' + ','.join(rs))
+                print(f'{i+1:>2}:' + ','.join(rs))
             print('x: 返回')
             self.phnxt(ctx)
             return self.push('input')
