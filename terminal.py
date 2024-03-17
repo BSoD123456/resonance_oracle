@@ -128,6 +128,7 @@ class c_terminal(c_base_terminal):
             print('欢迎使用[索思学会]戏言神谕机，且听戏言:')
             print('1: 行情预测')
             print('c: 配置车组信息')
+            print('r: 更新数据')
             print('x: 返回')
             self.phnxt(ctx)
             return self.push('input')
@@ -140,6 +141,8 @@ class c_terminal(c_base_terminal):
             elif cmd == 'c':
                 self.phrst(ctx)
                 return self.push('config', page = 'game')
+            elif cmd == 'r':
+                return self.goto('init')
             elif cmd == 'x':
                 return self.pop()
             else:
