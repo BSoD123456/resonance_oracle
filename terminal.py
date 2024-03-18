@@ -292,7 +292,7 @@ class c_terminal(c_base_terminal):
             print(f'最大载货利润: {route.max_hold_prof[0]:.2f} 正向 / {route.max_hold_prof[1]:.2f} 反向')
             for c in route.path:
                 stt = route.station[c]
-                print(f'=====')
+                print(f'\n\n=====')
                 print(f"{c}: 载货占用: {stt['hold_mass'][0]:.0f} 正向 / {stt['hold_mass'][1]:.0f} 反向 载货利润: {stt['hold_prof'][0]:.2f} 正向 / {stt['hold_prof'][1]:.2f} 反向")
                 print(f"--- 入货总利润: {stt['buy_total']:.2f} ---")
                 rs = []
