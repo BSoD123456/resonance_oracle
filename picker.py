@@ -22,6 +22,7 @@ class c_raw_picker:
         self.dom_url = dom_url
         self.dat_url = parse.urljoin(dom_url, dat_url)
         self.rt_url = parse.urljoin(dom_url, rt_url)
+        self.sta_urls = None
         self.sta_thr = sta_thr
         self.dyn_thr = dyn_thr
 
@@ -36,22 +37,28 @@ class c_raw_picker:
         dat = json.loads(dat)
         return dat
 
-    def _get_static(self, url):
+    def _parse_static_url(self, url):
+        if self.sta_urls:
+            return self.sta_urls
         resp = request.urlopen(url, timeout = self.timeout)
         raw = resp.read().decode(self.enc)
         #m = re.search(r'<script src\s*=\s*\"([^\"]+?page-\w+\.js)"', raw)
-        m = re.search(r'<script src\s*=\s*\"([^\"]+?975-\w+\.js)"', raw)
-        url = parse.urljoin(self.dom_url, m.group(1))
+        #m = re.search(r'<script src\s*=\s*\"([^\"]+?975-\w+\.js)"', raw)
+        m = re.search(r'<script src\s*=\s*\"([^\"]+?\d+-\w+\.js)\"[^<>]*?>\s*</script>\s*<script src\s*=\s*\"([^\"]+?page-\w+\.js)\"[^<>]*?>\s*</script>', raw)
+        self.sta_urls = m.group(1), m.group(2)
+        return self.sta_urls
+
+    def _get_static(self, url):
+        url = self._parse_static_url(url)[0]
+        url = parse.urljoin(self.dom_url, url)
         resp = request.urlopen(url)
         raw = resp.read().decode(self.enc)
         m = re.search(r'\w+\s*=\s*(\[[^"]+?name\s*\:\s*\"[^\"]+\"\s*,.*?\])', raw)
         return self._js2json(m.group(1))
 
     def _get_route(self, url):
-        resp = request.urlopen(url, timeout = self.timeout)
-        raw = resp.read().decode(self.enc)
-        m = re.search(r'<script src\s*=\s*\"([^\"]+?page-\w+\.js)"', raw)
-        url = parse.urljoin(self.dom_url, m.group(1))
+        url = self._parse_static_url(url)[1]
+        url = parse.urljoin(self.dom_url, url)
         resp = request.urlopen(url)
         raw = resp.read().decode(self.enc)
         m = re.search(r'\w+\s*=\s*(\[(\s*\{.*?cities\s*\:\s*\[[^\]]+]\s*,.*?fatigue\s*\:\s*\d+.*?\})+\s*\])', raw)
@@ -85,7 +92,7 @@ class c_raw_picker:
                 upd_time,
                 self.sta_thr,
                 'static.json',
-                lambda: self._get_static(self.dom_url))
+                lambda: self._get_static(self.rt_url))
             self.rt_dat = self._cache(
                 upd_time,
                 self.sta_thr,
