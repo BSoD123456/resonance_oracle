@@ -55,11 +55,6 @@ class c_route:
             stts[dst]['sell'] = sorted((
                 (nm, p, n) for nm, (p, n) in sa.items()),
                 key = lambda v: v[0], reverse = True)
-        if self.grpkey == 0x1a0:
-            _dbg = True
-            breakpoint()
-        else:
-            _dbg = False
         for snm, stt in stts.items():
             buy_total = 0
             buy_mass = 0
@@ -74,10 +69,6 @@ class c_route:
             stt['hold_mass'][1] += buy_mass
             stt['hold_prof'][0] += buy_total
             stt['hold_prof'][1] += buy_total
-            if _dbg:
-                print(snm)
-                print(buy_mass)
-                print(stt['hold_mass'])
             hold_mass = [buy_mass, buy_mass]
             hold_prof = [buy_total, buy_total]
             for di in range(1, plen):
@@ -86,20 +77,11 @@ class c_route:
                     for (nm, src), p, n in dstt['sell_raw']:
                         if src != snm:
                             continue
-                        if _dbg:
-                            print('minus:', nm)
-                            print(hi, hold_mass, n)
                         hold_mass[hi] -= n
                         assert hold_mass[hi] > -1
                         hold_prof[hi] -= p * n
-                    if _dbg:
-                        print('sub:', path[(bsi + di * stp) % plen])
-                        print(hi, dstt['hold_mass'])
-                        print(hi, hold_mass)
                     dstt['hold_mass'][hi] += hold_mass[hi]
                     dstt['hold_prof'][hi] += hold_prof[hi]
-        if self.grpkey == 0x1a0:
-            breakpoint()
         self.station = stts
         max_hold_mass = [0, 0]
         max_hold_prof = [0, 0]
