@@ -15,7 +15,7 @@ RT_URL = '/route'
 class c_raw_picker:
 
     def __init__(self, dom_url, dat_url, rt_url,
-            sta_thr = 3600 * 24, dyn_thr = 60 * 10,
+            sta_thr = 3600 * 18, dyn_thr = 60 * 10,
             enc = 'utf-8', timeout = 10):
         self.enc = 'utf-8'
         self.timeout = timeout
