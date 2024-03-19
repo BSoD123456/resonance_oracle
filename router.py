@@ -28,20 +28,39 @@ class c_route:
         stts = {k: {
             'idx': i,
             'buy': [],
+            'sell_raw': [],
             'sell': [],
             'buy_total': 0,
             'sell_total': 0,
             'hold_mass': [0, 0],
             'hold_prof': [0, 0],
         } for i, k in enumerate(path)}
+        sell_avg = {k: {} for k in path}
         for (nm, src), (dst, p, n) in sorted(
                 self.profits.items(),
                 key = lambda v: v[1][1], reverse = True):
             if n == 0:
                 continue
             stts[src]['buy'].append((nm, p, n))
-            stts[dst]['sell'].append((nm, p, n))
-        for stt in stts.values():
+            stts[dst]['sell_raw'].append(((nm, src), p, n))
+            dst_sell_avg = sell_avg[dst]
+            if nm in dst_sell_avg:
+                _op, _on = dst_sell_avg[nm]
+                _nn = _on + n
+                _np = (_op * _on + p * n) / _nn
+                dst_sell_avg[nm] = (_np, _nn)
+            else:
+                dst_sell_avg[nm] = (p, n)
+        for dst, sa in sell_avg.items():
+            stts[dst]['sell'] = sorted((
+                (nm, p, n) for nm, (p, n) in sa.items()),
+                key = lambda v: v[0], reverse = True)
+        if self.grpkey == 0x1a0:
+            _dbg = True
+            breakpoint()
+        else:
+            _dbg = False
+        for snm, stt in stts.items():
             buy_total = 0
             buy_mass = 0
             for _, p, n in stt['buy']:
@@ -55,19 +74,32 @@ class c_route:
             stt['hold_mass'][1] += buy_mass
             stt['hold_prof'][0] += buy_total
             stt['hold_prof'][1] += buy_total
+            if _dbg:
+                print(snm)
+                print(buy_mass)
+                print(stt['hold_mass'])
             hold_mass = [buy_mass, buy_mass]
             hold_prof = [buy_total, buy_total]
-            hold_set = set(nm for nm, *_ in stt['buy'])
             for di in range(1, plen):
                 for stp, hi in [(1, 0), (-1, 1)]:
                     dstt = stts[path[(bsi + di * stp) % plen]]
-                    for nm, p, n in dstt['sell']:
-                        if not nm in hold_set:
+                    for (nm, src), p, n in dstt['sell_raw']:
+                        if src != snm:
                             continue
+                        if _dbg:
+                            print('minus:', nm)
+                            print(hi, hold_mass, n)
                         hold_mass[hi] -= n
+                        assert hold_mass[hi] > -1
                         hold_prof[hi] -= p * n
+                    if _dbg:
+                        print('sub:', path[(bsi + di * stp) % plen])
+                        print(hi, dstt['hold_mass'])
+                        print(hi, hold_mass)
                     dstt['hold_mass'][hi] += hold_mass[hi]
                     dstt['hold_prof'][hi] += hold_prof[hi]
+        if self.grpkey == 0x1a0:
+            breakpoint()
         self.station = stts
         max_hold_mass = [0, 0]
         max_hold_prof = [0, 0]
