@@ -8,19 +8,18 @@ from urllib import request, parse, error as uerr
 from socket import error as serr
 
 DOM_URL = 'https://www.resonance-columba.com'
-DAT_URL = '/api/get-prices'
-#DAT_URL = '/api/get-prices-v2'
+DAT_URLS = ['/api/get-prices-v2', '/api/get-prices']
 RT_URL = '/route'
 
 class c_raw_picker:
 
-    def __init__(self, dom_url, dat_url, rt_url,
+    def __init__(self, dom_url, dat_urls, rt_url,
             sta_thr = 3600 * 18, dyn_thr = 60 * 10,
             enc = 'utf-8', timeout = 10):
         self.enc = 'utf-8'
         self.timeout = timeout
         self.dom_url = dom_url
-        self.dat_url = parse.urljoin(dom_url, dat_url)
+        self.dat_urls = [parse.urljoin(dom_url, u) for u in dat_urls]
         self.rt_url = parse.urljoin(dom_url, rt_url)
         self.sta_urls = None
         self.sta_thr = sta_thr
@@ -68,9 +67,41 @@ class c_raw_picker:
                         rtinfo[rk] = v
         return rdat
 
-    def _get_dynamic(self, url):
-        resp = request.urlopen(url, timeout = self.timeout)
-        return self._replace_dynamic(json.load(resp)['data'])
+    def _merge_dynamic(self, dats):
+        mdat, *sdats = dats
+        if not sdats:
+            return mdat
+        rdat = {}
+        for nm, mitm in mdat.items():
+            ritm = {}
+            rdat[nm] = ritm
+            for tkey in ['sell', 'buy']:
+                rsitm = {}
+                ritm[tkey] = rsitm
+                for city, tinfo in mitm[tkey].items():
+                    mx_time = tinfo['time']
+                    rtinfo = tinfo
+                    for sdat in sdats:
+                        stinfo = sdat[nm][tkey][city]
+                        if stinfo['time'] <= mx_time:
+                            continue
+                        if stinfo.get('price') == rtinfo.get('price'):
+                            continue
+                        mx_time = stinfo['time']
+                        rtinfo = stinfo
+                        #from time import ctime
+                        #print(nm, city)
+                        #print('v1', stinfo['price'], ctime(stinfo['time']))
+                        #print('v2', tinfo['price'], ctime(tinfo['time']))
+                    rsitm[city] = rtinfo
+        return rdat
+
+    def _get_dynamic(self, urls):
+        dats = []
+        for url in urls:
+            resp = request.urlopen(url, timeout = self.timeout)
+            dats.append(self._replace_dynamic(json.load(resp)['data']))
+        return self._merge_dynamic(dats)
 
     @staticmethod
     def _js2json(s):
@@ -159,7 +190,7 @@ class c_raw_picker:
                 upd_time,
                 self.dyn_thr,
                 'dynamic.json',
-                lambda: self._get_dynamic(self.dat_url))
+                lambda: self._get_dynamic(self.dat_urls))
         except (uerr.URLError, serr) as e:
             return False
         except:
@@ -376,7 +407,7 @@ class c_picker(c_raw_picker):
 from configurator import make_config
 
 def make_picker():
-    return c_picker(DOM_URL, DAT_URL, RT_URL, glb_cfg = make_config())
+    return c_picker(DOM_URL, DAT_URLS, RT_URL, glb_cfg = make_config())
 
 if __name__ == '__main__':
     from pdb import pm
