@@ -8,8 +8,8 @@ from urllib import request, parse, error as uerr
 from socket import error as serr
 
 DOM_URL = 'https://www.resonance-columba.com'
-#DAT_URL = '/api/get-prices'
-DAT_URL = '/api/get-prices-v2'
+DAT_URL = '/api/get-prices'
+#DAT_URL = '/api/get-prices-v2'
 RT_URL = '/route'
 
 class c_raw_picker:
@@ -26,9 +26,51 @@ class c_raw_picker:
         self.sta_thr = sta_thr
         self.dyn_thr = dyn_thr
 
+    def _replace_dynamic(self, dat):
+        dyn_rplc = self.sta_dat['extra'][0]
+        city_seq = self.sta_dat['extra'][1]
+        def _filt_sta(v, mn_prc):
+            if v['type'] == 'Normal':
+                bprcs = [i for i in v.get('buyPrices', {}).values() if i]
+                if not bprcs or min(bprcs) < 300:
+                    return False
+            return True
+        FLT_MIN = 300
+        nm_seq = [i['name'] for i in self.sta_dat['data'] if _filt_sta(i, FLT_MIN)]
+        rdat = {}
+        for nm, itm in dat.items():
+            if nm.isdigit():
+                nm = nm_seq[int(nm) - 1]
+            assert not nm in rdat
+            ritm = {}
+            rdat[nm] = ritm
+            for k, nk in [('s', 'sell'), ('b', 'buy')]:
+                if nk in itm:
+                    sitm = itm[nk]
+                else:
+                    sitm = itm.get(k)
+                    if not sitm:
+                        continue
+                rsitm = {}
+                ritm[nk] = rsitm
+                for city, tinfo in sitm.items():
+                    if city.isdigit():
+                        city = city_seq[int(city) - 1]
+                    rtinfo = {}
+                    rsitm[city] = rtinfo
+                    for k, v in tinfo.items():
+                        if not k in dyn_rplc:
+                            rtinfo[k] = v
+                            continue
+                        rk = dyn_rplc[k]
+                        if rk == 'trend':
+                            v = 'up' if v else 'down'
+                        rtinfo[rk] = v
+        return rdat
+
     def _get_dynamic(self, url):
         resp = request.urlopen(url, timeout = self.timeout)
-        return json.load(resp)['data']
+        return self._replace_dynamic(json.load(resp)['data'])
 
     @staticmethod
     def _js2json(s):
@@ -51,17 +93,25 @@ class c_raw_picker:
     def _get_static(self, url):
         url = self._parse_static_url(url)[0]
         url = parse.urljoin(self.dom_url, url)
-        resp = request.urlopen(url)
+        resp = request.urlopen(url, timeout = self.timeout)
         raw = resp.read().decode(self.enc)
         m = re.search(r'\w+\s*=\s*(\[[^"]+?name\s*\:\s*\"[^\"]+\"\s*,.*?\])', raw)
-        return self._js2json(m.group(1))
+        sta_dat = self._js2json(m.group(1))
+        m = re.search(r'{\s*(trend)\s*\:\s*[^,]*\.(\w+)(?:\W[^,]*)??,\s*(variation)\s*\:\s*[^,]*\.(\w+)(?:\W[^,]*)??,\s*(time)\s*\:\s*[^,]*\.(\w+)(?:\W[^,]*)??,\s*(price)\s*\:\s*[^,]*\.(\w+)(?:\W[^}]*)??}', raw)
+        mgs = m.groups()
+        dyn_rplc = {}
+        for i in range(0, len(mgs), 2):
+            dyn_rplc[mgs[i+1]] = mgs[i]
+        m = re.search(r'\w+\s*=\s*(\[(?:[\",\s]|[^\W\d_])+\])', raw, re.UNICODE)
+        city_seq = self._js2json(m.group(1))
+        return sta_dat, dyn_rplc, city_seq
 
     def _get_route(self, url):
         url = self._parse_static_url(url)[1]
         url = parse.urljoin(self.dom_url, url)
-        resp = request.urlopen(url)
+        resp = request.urlopen(url, timeout = self.timeout)
         raw = resp.read().decode(self.enc)
-        m = re.search(r'\w+\s*=\s*(\[(\s*\{.*?cities\s*\:\s*\[[^\]]+]\s*,.*?fatigue\s*\:\s*\d+.*?\})+\s*\])', raw)
+        m = re.search(r'\w+\s*=\s*(\[\s*\{.*?cities\s*\:\s*\[[^\]]+]\s*,.*?fatigue\s*\:\s*\d+.*?\}\s*\])', raw)
         return self._js2json(m.group(1))
 
     def _cache(self, cur, thr, fn, cb):
@@ -74,7 +124,14 @@ class c_raw_picker:
         if (old and 'time' in old and 'data' in old
                 and old['time'] + thr > cur):
             return old
-        dat = {'time': cur, 'data': cb()}
+        dat = {'time': cur}
+        rcb = cb()
+        if isinstance(rcb, tuple):
+            dat['data'] = rcb[0]
+            if len(rcb) > 1:
+                dat['extra'] = rcb[1:]
+        else:
+            dat['data'] = rcb
         try:
             with open(fn, 'w', encoding = enc) as fd:
                 json.dump(
@@ -290,7 +347,9 @@ class c_picker(c_raw_picker):
                 guess_sell[(name, city)] = (dsell, True)
                 itm['base'] = dsell
             else:
-                assert abs(dsale - itm['sale']) < 1
+                if abs(dsale - itm['sale']) >= 1:
+                    # when conflict, trust price
+                    itm['sale'] = dsale
 
     def get_buy(self, name, city):
         sinfo = self._get_sta_buy(name, city)
