@@ -142,7 +142,7 @@ class c_raw_picker:
         url = parse.urljoin(self.dom_url, url)
         resp = request.urlopen(url, timeout = self.timeout)
         raw = resp.read().decode(self.enc)
-        m = re.search(r'\w+\s*=\s*(\[\s*\{.*?cities\s*\:\s*\[[^\]]+]\s*,.*?fatigue\s*\:\s*\d+.*?\}\s*\])', raw)
+        m = re.search(r'\w+\s*=\s*(\[\s*\{[^\[\]]*?cities\s*\:\s*\[[^\]]+]\s*,.*?fatigue\s*\:\s*\d+[^\[\]]*?\}\s*\])', raw)
         return self._js2json(m.group(1))
 
     def _cache(self, cur, thr, fn, cb):
