@@ -8,7 +8,8 @@ from urllib import request, parse, error as uerr
 from socket import error as serr
 
 DOM_URL = 'https://www.resonance-columba.com'
-DAT_URLS = ['/api/get-prices-v2', '/api/get-prices']
+#DAT_URLS = ['/api/get-prices-v2', '/api/get-prices']
+DAT_URLS = ['/api/get-prices']
 RT_URL = '/route'
 
 class c_raw_picker:
