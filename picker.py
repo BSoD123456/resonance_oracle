@@ -10,18 +10,18 @@ from socket import error as serr
 DOM_URL = 'https://www.resonance-columba.com'
 #DAT_URLS = ['/api/get-prices-v2', '/api/get-prices']
 DAT_URLS = ['/api/get-prices']
-RT_URL = '/route'
+ENT_URLS = ['/route', '/prices']
 
 class c_raw_picker:
 
-    def __init__(self, dom_url, dat_urls, rt_url,
+    def __init__(self, dom_url, dat_urls, ent_urls,
             sta_thr = 3600 * 18, dyn_thr = 60 * 10,
             enc = 'utf-8', timeout = 10):
         self.enc = 'utf-8'
         self.timeout = timeout
         self.dom_url = dom_url
         self.dat_urls = [parse.urljoin(dom_url, u) for u in dat_urls]
-        self.rt_url = parse.urljoin(dom_url, rt_url)
+        self.ent_urls = [parse.urljoin(dom_url, u) for u in ent_urls]
         self.sta_urls = None
         self.sta_thr = sta_thr
         self.dyn_thr = dyn_thr
@@ -111,36 +111,47 @@ class c_raw_picker:
         dat = json.loads(dat)
         return dat
 
-    def _parse_static_url(self, url):
+    def _parse_static_urls(self, urls):
         if self.sta_urls:
             return self.sta_urls
-        resp = request.urlopen(url, timeout = self.timeout)
+        sta_urls = {}
+        resp = request.urlopen(urls[0], timeout = self.timeout)
         raw = resp.read().decode(self.enc)
         #m = re.search(r'<script src\s*=\s*\"([^\"]+?page-\w+\.js)"', raw)
         #m = re.search(r'<script src\s*=\s*\"([^\"]+?975-\w+\.js)"', raw)
-        m = re.search(r'<script src\s*=\s*\"([^\"]+?\d+-\w+\.js)\"[^<>]*?>\s*</script>\s*<script src\s*=\s*\"([^\"]+?page-\w+\.js)\"[^<>]*?>\s*</script>', raw)
-        self.sta_urls = m.group(1), m.group(2)
-        return self.sta_urls
+        #m = re.search(r'<script src\s*=\s*\"([^\"]+?\d+-\w+\.js)\"[^<>]*?>\s*</script>\s*<script src\s*=\s*\"([^\"]+?page-\w+\.js)\"[^<>]*?>\s*</script>', raw)
+        m = re.search(r'<script src\s*=\s*\"[^\"]+?/main-app-\w+\.js\"[^<>]*?>\s*</script>\s*<script src\s*=\s*\"([^\"]+?/\d+-\w+\.js)\"[^<>]*?>\s*</script>.*?<script src\s*=\s*\"([^\"]+?/page-\w+\.js)\"[^<>]*?>\s*</script>', raw)
+        sta_urls['data'] = m.group(1)
+        sta_urls['route'] = m.group(2)
+        resp = request.urlopen(urls[1], timeout = self.timeout)
+        raw = resp.read().decode(self.enc)
+        m = re.search(r'<script src\s*=\s*\"([^\"]+?/page-\w+\.js)\"[^<>]*?>\s*</script>', raw)
+        sta_urls['extra'] = m.group(1)
+        self.sta_urls = sta_urls
+        return sta_urls
 
-    def _get_static(self, url):
-        url = self._parse_static_url(url)[0]
-        url = parse.urljoin(self.dom_url, url)
+    def _get_static(self, urls):
+        urls = self._parse_static_urls(urls)
+        url = parse.urljoin(self.dom_url, urls['data'])
         resp = request.urlopen(url, timeout = self.timeout)
         raw = resp.read().decode(self.enc)
         m = re.search(r'\w+\s*=\s*(\[[^"]+?name\s*\:\s*\"[^\"]+\"\s*,.*?\])', raw)
         sta_dat = self._js2json(m.group(1))
+        url = parse.urljoin(self.dom_url, urls['extra'])
+        resp = request.urlopen(url, timeout = self.timeout)
+        raw = resp.read().decode(self.enc)
         m = re.search(r'{\s*(trend)\s*\:\s*[^,]*\.(\w+)(?:\W[^,]*)??,\s*(variation)\s*\:\s*[^,]*\.(\w+)(?:\W[^,]*)??,\s*(time)\s*\:\s*[^,]*\.(\w+)(?:\W[^,]*)??,\s*(price)\s*\:\s*[^,]*\.(\w+)(?:\W[^}]*)??}', raw)
         mgs = m.groups()
         dyn_rplc = {}
         for i in range(0, len(mgs), 2):
             dyn_rplc[mgs[i+1]] = mgs[i]
-        m = re.search(r'\w+\s*=\s*(\[(?:[\",\s]|[^\W\d_])+\])', raw, re.UNICODE)
+        m = re.search(r'\w+\s*=\s*(\[(?:[\",\s]|[^\W\d_]){70,}\])', raw, re.UNICODE)
         city_seq = self._js2json(m.group(1))
         return sta_dat, dyn_rplc, city_seq
 
-    def _get_route(self, url):
-        url = self._parse_static_url(url)[1]
-        url = parse.urljoin(self.dom_url, url)
+    def _get_route(self, urls):
+        urls = self._parse_static_urls(urls)
+        url = parse.urljoin(self.dom_url, urls['route'])
         resp = request.urlopen(url, timeout = self.timeout)
         raw = resp.read().decode(self.enc)
         m = re.search(r'\w+\s*=\s*(\[\s*\{[^\[\]]*?cities\s*\:\s*\[[^\]]+]\s*,.*?fatigue\s*\:\s*\d+[^\[\]]*?\}\s*\])', raw)
@@ -181,12 +192,12 @@ class c_raw_picker:
                 upd_time,
                 self.sta_thr,
                 'static.json',
-                lambda: self._get_static(self.rt_url))
+                lambda: self._get_static(self.ent_urls))
             self.rt_dat = self._cache(
                 upd_time,
                 self.sta_thr,
                 'route.json',
-                lambda: self._get_route(self.rt_url))
+                lambda: self._get_route(self.ent_urls))
             self.dyn_dat = self._cache(
                 upd_time,
                 self.dyn_thr,
@@ -408,7 +419,7 @@ class c_picker(c_raw_picker):
 from configurator import make_config
 
 def make_picker():
-    return c_picker(DOM_URL, DAT_URLS, RT_URL, glb_cfg = make_config())
+    return c_picker(DOM_URL, DAT_URLS, ENT_URLS, glb_cfg = make_config())
 
 if __name__ == '__main__':
     from pdb import pm
