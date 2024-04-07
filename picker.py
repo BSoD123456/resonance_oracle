@@ -29,14 +29,15 @@ class c_raw_picker:
     def _replace_dynamic(self, dat):
         dyn_rplc = self.sta_dat['extra'][0]
         city_seq = self.sta_dat['extra'][1]
-        def _filt_sta(v, mn_prc):
-            if v['type'] == 'Normal':
-                bprcs = [i for i in v.get('buyPrices', {}).values() if i]
-                if not bprcs or min(bprcs) < 300:
-                    return False
-            return True
-        FLT_MIN = 300
-        nm_seq = [i['name'] for i in self.sta_dat['data'] if _filt_sta(i, FLT_MIN)]
+##        def _filt_sta(v, mn_prc):
+##            if v['type'] == 'Normal':
+##                bprcs = [i for i in v.get('buyPrices', {}).values() if i]
+##                if not bprcs or min(bprcs) < 300:
+##                    return False
+##            return True
+##        FLT_MIN = 300
+##        nm_seq = [i['name'] for i in self.sta_dat['data'] if _filt_sta(i, FLT_MIN)]
+        nm_seq = [i['name'] for i in self.sta_dat['data']]
         rdat = {}
         for nm, itm in dat.items():
             if nm.isdigit():
